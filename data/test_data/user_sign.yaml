@@ -1,0 +1,16 @@
+-
+  title: "登入的测试参数"
+  request:
+    json:
+      "userName": "student"
+      "password": "123456"
+      "remember": false
+
+-
+  title: "登入的测试参数"
+  request:
+    json:
+      "userName": "admin"
+      "password": "123456"
+      "remember": false
+

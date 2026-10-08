@@ -22,6 +22,7 @@ class TestAuth:
         # TODO: 按实际接口调整 URL
         resp = api_client.post("/api/v1/auth/login", json=payload)
         ae = AssertionEngine(resp)
+        #这么写说明他说token在最外层  这个has_field
         ae.status_code(200).has_field("token")
 
         token = ae.extract("token")

@@ -168,7 +168,7 @@ class AssertionEngine:
         return self
 
     # ==================== 值提取（供后续用例使用） ====================
-
+    #这个field 就是 data.user.name  就相当于是哪一层哪一层这样子 要精准到键
     def extract(self, field: str, default: Any = None) -> Any:
         """
         从响应中提取字段值（点号分隔嵌套）
@@ -185,7 +185,7 @@ class AssertionEngine:
         return current
 
     # ==================== 私有方法 ====================
-
+    #
     @property
     def _json(self) -> Any:
         if self._json_body is None:

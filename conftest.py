@@ -22,7 +22,7 @@ from framework import (
 
 # ==================== 初始化钩子（session 启动时执行一次） ====================
 
-
+#  pytest_configure  pytest 启动后、收集用例之前
 def pytest_configure(config):
     """pytest 配置阶段：加载 Schema 注册"""
     from models import register_user_contracts
@@ -32,7 +32,7 @@ def pytest_configure(config):
 
 # ==================== 命令行参数 ====================
 
-
+#解析命令行参数时
 def pytest_addoption(parser):
     parser.addoption("--mode", action="store", default="live",
                      choices=["live", "mock", "hybrid"],
