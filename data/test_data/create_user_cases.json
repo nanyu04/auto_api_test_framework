@@ -1,0 +1,23 @@
+"""
+【测试数据文件】— JSON 格式测试数据
+
+你可以把参数化的测试数据写在 JSON 文件里，
+在测试用例中用 read_json_file() 加载。
+"""
+[
+    {
+        "scenario": "正常用户",
+        "payload": {"name": "张三", "email": "zhangsan@example.com", "age": 25},
+        "expected": {"status": 200, "code": 0}
+    },
+    {
+        "scenario": "年龄为0",
+        "payload": {"name": "李四", "email": "lisi@example.com", "age": 0},
+        "expected": {"status": 200, "code": 0}
+    },
+    {
+        "scenario": "年龄超限",
+        "payload": {"name": "王五", "email": "wangwu@example.com", "age": 200},
+        "expected": {"status": 400, "code": 10001}
+    }
+]

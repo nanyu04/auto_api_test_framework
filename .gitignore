@@ -1,0 +1,37 @@
+# ============ 环境文件（敏感信息不入库） ============
+.env
+.env.*.local
+
+# ============ Python ============
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ============ 虚拟环境 ============
+.venv/
+venv/
+
+# ============ 日志 ============
+logs/
+*.log
+*.log.gz
+
+# ============ 报告 ============
+reports/allure-results/
+reports/allure-report/
+reports/*.html
+
+# ============ IDE ============
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============ 系统 ============
+.DS_Store
+Thumbs.db
