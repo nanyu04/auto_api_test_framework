@@ -1,6 +1,8 @@
-﻿// ==========================================
-// 1. 自定义方法必须放在 pipeline 块的外面！
-// ==========================================
+﻿// ============================================================
+//  飞书通知函数（必须放在 pipeline 块外面）
+//  用 \$ 转义 PowerShell 中的 $，避免 Groovy GString 报错
+//  （Groovy 的 """ 字符串中，\$ 输出为 $，${...} 仍是插值）
+// ============================================================
 def feishuNotify(status, summary) {
     def color = (status == 'SUCCESS') ? 'green' : 'red'
     def title = (status == 'SUCCESS') ? '✅ 构建成功' : '❌ 构建失败'
@@ -58,25 +60,27 @@ def feishuNotify(status, summary) {
     }
 }"""
 
-    // 修复了单引号不解析变量的问题，改用三引号包裹
+    // 注意：\$ 是 Groovy GString 中转义 $ 的标准写法
+    // \$body → $body (PowerShell 变量)
+    // ${cardJson} → 插值 cardJson 内容
     powershell """
         try {
-            $$body = '''${cardJson}'''
-            $$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body $$body
-            if ($$response.code -ne 0) {
-                Write-Warning "飞书通知返回异常: $$($$response | ConvertTo-Json -Compress)"
+            \$body = '${cardJson}'
+            \$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body \$body
+            if (\$response.code -ne 0) {
+                Write-Warning "飞书通知返回异常: \$(\$response | ConvertTo-Json -Compress)"
             } else {
                 Write-Host "飞书通知发送成功 (status=${status})"
             }
         } catch {
-            Write-Warning "飞书通知发送失败: $$($$_ | Out-String)"
+            Write-Warning "飞书通知发送失败: \$(\$_ | Out-String)"
         }
     """
 }
 
-// ==========================================
-// 2. pipeline 块开始
-// ==========================================
+// ============================================================
+//  pipeline 声明式流水线
+// ============================================================
 pipeline {
     agent any
 
@@ -90,8 +94,7 @@ pipeline {
     environment {
         REPORTS_DIR   = 'reports/allure'
         FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
-        // 注意这里改成了正斜杠 /，防止 Groovy 解析转义字符报错
-        PIP_CACHE_DIR = "${WORKSPACE}/pip_cache"
+        PIP_CACHE_DIR = "${WORKSPACE}\\pip_cache"
         PROJECT_NAME  = 'API 接口自动化测试'
     }
 
@@ -103,8 +106,8 @@ pipeline {
         stage('② 环境准备') {
             steps {
                 bat 'if not exist .venv python -m venv .venv'
-                bat 'call .venv\\Scripts\\activate.bat && pip install --upgrade pip -q'
-                bat "call .venv\\Scripts\\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
+                bat 'call .venv\Scripts\activate.bat && pip install --upgrade pip -q'
+                bat "call .venv\Scripts\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
             }
         }
 
@@ -130,7 +133,7 @@ pipeline {
                     if (params.MOCK_MODE)                 { args.add('--mode=mock') }
                     args << '--alluredir' << env.REPORTS_DIR
                     args << 'tests/' << '--timeout=60'
-                    bat "call .venv\\Scripts\\activate.bat && pytest ${args.join(' ')}"
+                    bat "call .venv\Scripts\activate.bat && pytest ${args.join(' ')}"
                 }
             }
         }
