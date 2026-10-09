@@ -111,9 +111,9 @@ pipeline {
         REPORTS_DIR   = 'reports/allure'
         FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
         PROJECT_NAME  = 'API 接口自动化测试'
-        // 虚拟环境和 pip 缓存放在工作空间外面，跨构建持久化
-        VENV_DIR      = "${env.USERPROFILE}\\.jenkins-venv\\api-framework"
-        PIP_CACHE_DIR = "${env.USERPROFILE}\\.jenkins-venv\\pip-cache"
+        // 虚拟环境和 pip 缓存放在 D 盘持久化目录，跨构建复用
+        VENV_DIR      = 'D:\\jenkins\\venv\\api-framework'
+        PIP_CACHE_DIR = 'D:\\jenkins\\venv\\pip-cache'
     }
 
     stages {
@@ -148,8 +148,8 @@ pipeline {
 
                     if (oldHash != newHash) {
                         echo "📦 requirements.txt 已变更，重新安装依赖..."
-                        bat "${venvActivate} && python -m pip install --upgrade pip -q"
-                        bat "${venvActivate} && pip install -r requirements.txt -q --cache-dir \"${env.PIP_CACHE_DIR}\""
+                        bat "${venvActivate} && python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple -q"
+                        bat "${venvActivate} && pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple -q --cache-dir \"${env.PIP_CACHE_DIR}\""
                         bat "echo ${newHash} > \"${reqHashFile}\""
                     } else {
                         echo "✅ 依赖未变化，跳过 pip install（缓存命中）"
