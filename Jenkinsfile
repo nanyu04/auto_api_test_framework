@@ -1,29 +1,11 @@
-﻿pipeline {
-    agent any
+﻿// ==========================================
+// 1. 自定义方法必须放在 pipeline 块的外面！
+// ==========================================
+def feishuNotify(status, summary) {
+    def color = (status == 'SUCCESS') ? 'green' : 'red'
+    def title = (status == 'SUCCESS') ? '✅ 构建成功' : '❌ 构建失败'
 
-    parameters {
-        choice(name: 'ENV', choices: ['dev','test','staging','prod'], description: '选择测试环境')
-        choice(name: 'TEST_LEVEL', choices: ['smoke','regression','all'], description: '测试范围')
-        string(name: 'MARKER', defaultValue: '', description: '自定义 pytest marker')
-        booleanParam(name: 'MOCK_MODE', defaultValue: false, description: '启用 Mock 模式')
-    }
-
-    environment {
-        REPORTS_DIR   = 'reports/allure'
-        FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
-        PIP_CACHE_DIR = "${WORKSPACE}\pip_cache"
-        PROJECT_NAME  = 'API 接口自动化测试'
-    }
-
-    // ──────────────────────────────────────────────
-    //  飞书通知函数 — 发送交互式卡片消息
-    //  如需调整通知内容与格式，修改下方 cardJson 即可
-    // ──────────────────────────────────────────────
-    def feishuNotify(status, summary) {
-        def color = (status == 'SUCCESS') ? 'green' : 'red'
-        def title = (status == 'SUCCESS') ? '✅ 构建成功' : '❌ 构建失败'
-
-        def cardJson = """{
+    def cardJson = """{
     "msg_type": "interactive",
     "card": {
         "config": { "wide_screen_mode": true },
@@ -62,23 +44,13 @@
                         "tag": "button",
                         "text": { "tag": "plain_text", "content": "🔗 查看构建" },
                         "type": "primary",
-                        "multi_url": {
-                            "url": "${env.BUILD_URL}",
-                            "android_url": "",
-                            "ios_url": "",
-                            "pc_url": ""
-                        }
+                        "multi_url": { "url": "${env.BUILD_URL}", "android_url": "", "ios_url": "", "pc_url": "" }
                     },
                     {
                         "tag": "button",
                         "text": { "tag": "plain_text", "content": "📊 Allure 报告" },
                         "type": "default",
-                        "multi_url": {
-                            "url": "${env.BUILD_URL}allure",
-                            "android_url": "",
-                            "ios_url": "",
-                            "pc_url": ""
-                        }
+                        "multi_url": { "url": "${env.BUILD_URL}allure", "android_url": "", "ios_url": "", "pc_url": "" }
                     }
                 ]
             }
@@ -86,21 +58,41 @@
     }
 }"""
 
-        // Windows Jenkins 用 PowerShell 发送飞书 Webhook
-        // 注意：cardJson 通过单引号字符串传递，避免与外面 here-string 冲突
-        powershell """
-            try {
-                $$body = '${cardJson}'
-                $$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body $$body
-                if ($$response.code -ne 0) {
-                    Write-Warning "飞书通知返回异常: $$($$response | ConvertTo-Json -Compress)"
-                } else {
-                    Write-Host "飞书通知发送成功 (status=${status})"
-                }
-            } catch {
-                Write-Warning "飞书通知发送失败: $$($$_ | Out-String)"
+    // 修复了单引号不解析变量的问题，改用三引号包裹
+    powershell """
+        try {
+            $$body = '''${cardJson}'''
+            $$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body $$body
+            if ($$response.code -ne 0) {
+                Write-Warning "飞书通知返回异常: $$($$response | ConvertTo-Json -Compress)"
+            } else {
+                Write-Host "飞书通知发送成功 (status=${status})"
             }
-        """
+        } catch {
+            Write-Warning "飞书通知发送失败: $$($$_ | Out-String)"
+        }
+    """
+}
+
+// ==========================================
+// 2. pipeline 块开始
+// ==========================================
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'ENV', choices: ['dev','test','staging','prod'], description: '选择测试环境')
+        choice(name: 'TEST_LEVEL', choices: ['smoke','regression','all'], description: '测试范围')
+        string(name: 'MARKER', defaultValue: '', description: '自定义 pytest marker')
+        booleanParam(name: 'MOCK_MODE', defaultValue: false, description: '启用 Mock 模式')
+    }
+
+    environment {
+        REPORTS_DIR   = 'reports/allure'
+        FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
+        // 注意这里改成了正斜杠 /，防止 Groovy 解析转义字符报错
+        PIP_CACHE_DIR = "${WORKSPACE}/pip_cache"
+        PROJECT_NAME  = 'API 接口自动化测试'
     }
 
     stages {
@@ -111,8 +103,8 @@
         stage('② 环境准备') {
             steps {
                 bat 'if not exist .venv python -m venv .venv'
-                bat 'call .venv\Scripts\activate.bat && pip install --upgrade pip -q'
-                bat "call .venv\Scripts\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
+                bat 'call .venv\\Scripts\\activate.bat && pip install --upgrade pip -q'
+                bat "call .venv\\Scripts\\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
             }
         }
 
@@ -138,7 +130,7 @@
                     if (params.MOCK_MODE)                 { args.add('--mode=mock') }
                     args << '--alluredir' << env.REPORTS_DIR
                     args << 'tests/' << '--timeout=60'
-                    bat "call .venv\Scripts\activate.bat && pytest ${args.join(' ')}"
+                    bat "call .venv\\Scripts\\activate.bat && pytest ${args.join(' ')}"
                 }
             }
         }
