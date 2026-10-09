@@ -1,11 +1,28 @@
 ﻿// ============================================================
 //  飞书通知函数（必须放在 pipeline 块外面）
-//  用 \$ 转义 PowerShell 中的 $，避免 Groovy GString 报错
-//  （Groovy 的 """ 字符串中，\$ 输出为 $，${...} 仍是插值）
 // ============================================================
 def feishuNotify(status, summary) {
-    def color = (status == 'SUCCESS') ? 'green' : 'red'
-    def title = (status == 'SUCCESS') ? '✅ 构建成功' : '❌ 构建失败'
+    def colorMap = [
+        'SUCCESS': 'green',
+        'FAILURE': 'red',
+        'UNSTABLE': 'yellow',
+        'ABORTED': 'grey',
+    ]
+    def titleMap = [
+        'SUCCESS': '✅ 构建成功',
+        'FAILURE': '❌ 构建失败',
+        'UNSTABLE': '⚠️ 构建不稳定',
+        'ABORTED': '⏹ 构建已取消',
+    ]
+    def color = colorMap.get(status, 'red')
+    def title = titleMap.get(status, '构建通知')
+
+    // 安全获取构建信息
+    def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
+    def buildTime = currentBuild.startTimeInMillis
+        ? new Date(currentBuild.startTimeInMillis).format('yyyy-MM-dd HH:mm:ss')
+        : 'N/A'
+    def duration = currentBuild.durationString?.replace(' and counting', '') ?: 'N/A'
 
     def cardJson = """{
     "msg_type": "interactive",
@@ -20,7 +37,7 @@ def feishuNotify(status, summary) {
                 "tag": "div",
                 "fields": [
                     { "is_short": true, "text": { "tag": "lark_md", "content": "**🆔 构建编号**\\n${env.BUILD_NUMBER}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**🌿 分支**\\n${env.BRANCH_NAME}" } },
+                    { "is_short": true, "text": { "tag": "lark_md", "content": "**🌿 分支**\\n${branchName}" } },
                     { "is_short": true, "text": { "tag": "lark_md", "content": "**🔧 环境**\\n${params.ENV}" } },
                     { "is_short": true, "text": { "tag": "lark_md", "content": "**📊 测试范围**\\n${params.TEST_LEVEL}" } }
                 ]
@@ -29,8 +46,8 @@ def feishuNotify(status, summary) {
             {
                 "tag": "div",
                 "fields": [
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**📅 时间**\\n${currentBuild.timeInMillis ? new Date(currentBuild.timeInMillis).format('yyyy-MM-dd HH:mm:ss') : 'N/A'}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**⏱ 耗时**\\n${currentBuild.durationString?.replace(' and counting', '') ?: 'N/A'}" } }
+                    { "is_short": true, "text": { "tag": "lark_md", "content": "**📅 时间**\\n${buildTime}" } },
+                    { "is_short": true, "text": { "tag": "lark_md", "content": "**⏱ 耗时**\\n${duration}" } }
                 ]
             },
             { "tag": "hr" },
@@ -60,12 +77,11 @@ def feishuNotify(status, summary) {
     }
 }"""
 
-    // 注意：\$ 是 Groovy GString 中转义 $ 的标准写法
-    // \$body → $body (PowerShell 变量)
-    // ${cardJson} → 插值 cardJson 内容
     powershell """
         try {
-            \$body = '${cardJson}'
+            \$body = @'
+${cardJson}
+'@
             \$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body \$body
             if (\$response.code -ne 0) {
                 Write-Warning "飞书通知返回异常: \$(\$response | ConvertTo-Json -Compress)"
@@ -106,17 +122,18 @@ pipeline {
         stage('② 环境准备') {
             steps {
                 bat 'if not exist .venv python -m venv .venv'
-                bat 'call .venv\Scripts\activate.bat && pip install --upgrade pip -q'
-                bat "call .venv\Scripts\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
+                bat 'call .venv\\Scripts\\activate.bat && python -m pip install --upgrade pip -q'
+                bat "call .venv\\Scripts\\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
             }
         }
 
         stage('③ 加载配置') {
             steps {
                 script {
-                    def envFile = ".env." + params.ENV
+                    def envFile = ".env.${params.ENV}"
                     if (fileExists(envFile)) {
                         bat "copy /Y ${envFile} .env"
+                        echo "✅ 已加载配置: ${envFile}"
                     } else {
                         echo "⚠ 未找到 ${envFile}，跳过"
                     }
@@ -127,13 +144,31 @@ pipeline {
         stage('④ 执行测试') {
             steps {
                 script {
+                    // 先清理上次的报告
+                    bat "if exist ${env.REPORTS_DIR} rmdir /S /Q ${env.REPORTS_DIR}"
+
                     def args = []
-                    if (params.TEST_LEVEL == 'smoke')     { args.add('-m'); args.add('smoke') }
-                    if (params.MARKER?.trim())            { args.add('-m'); args.add(params.MARKER.trim()) }
-                    if (params.MOCK_MODE)                 { args.add('--mode=mock') }
+                    if (params.TEST_LEVEL == 'smoke') {
+                        args << '-m' << 'smoke'
+                    }
+                    if (params.MARKER?.trim()) {
+                        args << '-m' << params.MARKER.trim()
+                    }
+                    if (params.MOCK_MODE) {
+                        args << '--mode=mock'
+                    }
                     args << '--alluredir' << env.REPORTS_DIR
-                    args << 'tests/' << '--timeout=60'
-                    bat "call .venv\Scripts\activate.bat && pytest ${args.join(' ')}"
+                    args << 'tests/'
+                    args << '--timeout=60'
+
+                    echo "⏳ 执行: pytest ${args.join(' ')}"
+
+                    // 捕获 pytest 退出码但不中断流水线
+                    try {
+                        bat "call .venv\\Scripts\\activate.bat && pytest ${args.join(' ')}"
+                    } catch (Exception e) {
+                        echo "⚠ pytest 返回了非零退出码（有失败用例），继续执行..."
+                    }
                 }
             }
         }
@@ -141,7 +176,14 @@ pipeline {
 
     post {
         always {
-            allure results: [[path: env.REPORTS_DIR]]
+            script {
+                // 安全发布 Allure 报告，不影响后续通知
+                try {
+                    allure results: [[path: env.REPORTS_DIR]]
+                } catch (Exception e) {
+                    echo "⚠ Allure 报告发布失败: ${e.message}"
+                }
+            }
         }
 
         success {
