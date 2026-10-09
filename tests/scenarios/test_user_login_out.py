@@ -32,4 +32,4 @@ class TestLogout:
             logout_result = auth_api.logout(url="/api/user/logout")
             ae = AssertionEngine(logout_result)
             ae.status_code(200).has_field("message").has_field("response")
-
+            print(logout_result)
