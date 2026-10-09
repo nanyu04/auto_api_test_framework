@@ -1,18 +1,14 @@
 // ============================================================
-//  飞书通知函数（必须放在 pipeline 块外面）
+//  飞书通知函数
 // ============================================================
 def feishuNotify(status, summary) {
     def colorMap = [
-        'SUCCESS': 'green',
-        'FAILURE': 'red',
-        'UNSTABLE': 'yellow',
-        'ABORTED': 'grey',
+        'SUCCESS': 'green', 'FAILURE': 'red',
+        'UNSTABLE': 'yellow', 'ABORTED': 'grey',
     ]
     def titleMap = [
-        'SUCCESS': '✅ 构建成功',
-        'FAILURE': '❌ 构建失败',
-        'UNSTABLE': '⚠️ 构建不稳定',
-        'ABORTED': '⏹ 构建已取消',
+        'SUCCESS': '✅ 构建成功', 'FAILURE': '❌ 构建失败',
+        'UNSTABLE': '⚠️ 构建不稳定', 'ABORTED': '⏹ 构建已取消',
     ]
     def color = colorMap.get(status, 'red')
     def title = titleMap.get(status, '构建通知')
@@ -32,46 +28,26 @@ def feishuNotify(status, summary) {
             "template": "${color}"
         },
         "elements": [
-            {
-                "tag": "div",
-                "fields": [
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**🆔 构建编号**\\n${env.BUILD_NUMBER}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**🌿 分支**\\n${branchName}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**🔧 环境**\\n${params.ENV}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**📊 测试范围**\\n${params.TEST_LEVEL}" } }
-                ]
-            },
+            { "tag": "div", "fields": [
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**🆔 构建编号**\\n${env.BUILD_NUMBER}" } },
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**🌿 分支**\\n${branchName}" } },
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**🔧 环境**\\n${params.ENV}" } },
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**📊 测试范围**\\n${params.TEST_LEVEL}" } }
+            ]},
             { "tag": "hr" },
-            {
-                "tag": "div",
-                "fields": [
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**📅 时间**\\n${buildTime}" } },
-                    { "is_short": true, "text": { "tag": "lark_md", "content": "**⏱ 耗时**\\n${duration}" } }
-                ]
-            },
+            { "tag": "div", "fields": [
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**📅 时间**\\n${buildTime}" } },
+                { "is_short": true, "text": { "tag": "lark_md", "content": "**⏱ 耗时**\\n${duration}" } }
+            ]},
             { "tag": "hr" },
-            {
-                "tag": "div",
-                "text": { "tag": "lark_md", "content": "${summary}" }
-            },
+            { "tag": "div", "text": { "tag": "lark_md", "content": "${summary}" } },
             { "tag": "hr" },
-            {
-                "tag": "action",
-                "actions": [
-                    {
-                        "tag": "button",
-                        "text": { "tag": "plain_text", "content": "🔗 查看构建" },
-                        "type": "primary",
-                        "multi_url": { "url": "${env.BUILD_URL}", "android_url": "", "ios_url": "", "pc_url": "" }
-                    },
-                    {
-                        "tag": "button",
-                        "text": { "tag": "plain_text", "content": "📊 Allure 报告" },
-                        "type": "default",
-                        "multi_url": { "url": "${env.BUILD_URL}allure", "android_url": "", "ios_url": "", "pc_url": "" }
-                    }
-                ]
-            }
+            { "tag": "action", "actions": [
+                { "tag": "button", "text": { "tag": "plain_text", "content": "🔗 查看构建" }, "type": "primary",
+                  "multi_url": { "url": "${env.BUILD_URL}", "android_url": "", "ios_url": "", "pc_url": "" } },
+                { "tag": "button", "text": { "tag": "plain_text", "content": "📊 Allure 报告" }, "type": "default",
+                  "multi_url": { "url": "${env.BUILD_URL}allure", "android_url": "", "ios_url": "", "pc_url": "" } }
+            ]}
         ]
     }
 }"""
@@ -114,61 +90,28 @@ pipeline {
     }
 
     environment {
-        PYTHONIOENCODING    = 'utf-8'
-        PYTHONUNBUFFERED    = '1'
-        PIP_INDEX_URL       = 'https://pypi.tuna.tsinghua.edu.cn/simple'
-        PIP_TRUSTED_HOST    = 'pypi.tuna.tsinghua.edu.cn'
+        PYTHONIOENCODING = 'utf-8'
+        PYTHONUNBUFFERED = '1'
+        PIP_INDEX_URL    = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+        PIP_TRUSTED_HOST = 'pypi.tuna.tsinghua.edu.cn'
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
 
-        REPORTS_DIR   = 'reports/allure'
-        FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
-        PROJECT_NAME  = 'API 接口自动化测试'
-        VENV_DIR      = 'D:\\jenkins\\venv\\api-framework'
-        PIP_CACHE_DIR = 'D:\\jenkins\\venv\\pip-cache'
+        FEISHU_URL   = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
+        PROJECT_NAME = 'API 接口自动化测试'
     }
 
     stages {
-        stage('① 拉取代码') {
-            steps { checkout scm }
-        }
-
-        stage('② 环境准备') {
+        stage('① 环境准备') {
             steps {
-                script {
-                    def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
-                    def reqHashFile = "${env.VENV_DIR}\\requirements-hash.txt"
-
-                    // 虚拟环境持久化：不存在才创建
-                    if (fileExists("${env.VENV_DIR}\\Scripts\\activate.bat")) {
-                        echo "✅ 虚拟环境已缓存，跳过创建"
-                    } else {
-                        echo "🔄 首次构建，创建虚拟环境..."
-                        bat "python -m venv \"${env.VENV_DIR}\" --without-pip"
-                    }
-
-                    // 检测 requirements.txt 哈希，没变就跳过安装
-                    def oldHash = bat(
-                        returnStdout: true,
-                        script: "if exist \"${reqHashFile}\" (type \"${reqHashFile}\") else (echo.)"
-                    ).trim()
-                    def newHash = powershell(
-                        returnStdout: true,
-                        script: "@(Get-FileHash -Path requirements.txt -Algorithm SHA256).Hash"
-                    ).trim()
-
-                    if (oldHash != newHash) {
-                        echo "📦 requirements.txt 已变更，安装依赖..."
-                        bat "${venvActivate} && python -m pip install --upgrade pip -q"
-                        bat "${venvActivate} && pip install -r requirements.txt -q --cache-dir \"${env.PIP_CACHE_DIR}\""
-                        bat "echo ${newHash} > \"${reqHashFile}\""
-                    } else {
-                        echo "✅ 依赖未变化，跳过 pip install（缓存命中）"
-                    }
-                }
+                bat '''
+                    if exist .venv rmdir /s /q .venv
+                    python -m venv .venv
+                    .venv\\Scripts\\python.exe -m pip install -r requirements.txt
+                '''
             }
         }
 
-        stage('③ 加载配置') {
+        stage('② 加载配置') {
             steps {
                 script {
                     def envFile = ".env.${params.ENV}"
@@ -182,36 +125,13 @@ pipeline {
             }
         }
 
-        stage('④ 执行测试') {
+        stage('③ 执行测试') {
             steps {
-                script {
-                    bat "if exist reports rmdir /S /Q reports"
-                    bat "mkdir reports"
-
-                    def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
-                    def args = []
-                    if (params.TEST_LEVEL == 'smoke') {
-                        args << '-m' << 'smoke'
-                    }
-                    if (params.MARKER?.trim()) {
-                        args << '-m' << params.MARKER.trim()
-                    }
-                    if (params.MOCK_MODE) {
-                        args << '--mode=mock'
-                    }
-                    args << '--alluredir' << env.REPORTS_DIR
-                    args << '--junitxml=reports/junit.xml'
-                    args << 'tests/'
-                    args << '--timeout=60'
-
-                    echo "⏳ 执行: pytest ${args.join(' ')}"
-
-                    try {
-                        bat "${venvActivate} && pytest ${args.join(' ')}"
-                    } catch (Exception e) {
-                        echo "⚠ pytest 返回了非零退出码（有失败用例），继续执行..."
-                    }
-                }
+                bat '''
+                    if exist reports rmdir /s /q reports
+                    mkdir reports
+                    .venv\\Scripts\\python.exe -m pytest -v --junitxml=reports/junit.xml
+                '''
             }
         }
     }
@@ -221,11 +141,17 @@ pipeline {
             junit allowEmptyResults: true, testResults: 'reports/junit.xml'
             script {
                 try {
-                    allure results: [[path: env.REPORTS_DIR]]
+                    allure results: [[path: 'allure-results']]
                 } catch (Exception e) {
                     echo "⚠ Allure 报告发布失败: ${e.message}"
                 }
             }
+            bat '''
+                if exist .venv rmdir /s /q .venv
+                if exist .pytest_cache rmdir /s /q .pytest_cache
+                for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d"
+                exit /b 0
+            '''
         }
 
         success {
