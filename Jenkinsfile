@@ -144,7 +144,6 @@ pipeline {
                     } else {
                         echo "🔄 首次构建，创建虚拟环境..."
                         bat "python -m venv \"${env.VENV_DIR}\" --without-pip"
-                        bat "${venvActivate} && python -m ensurepip --upgrade --default-pip"
                     }
 
                     // 检测 requirements.txt 哈希，没变就跳过安装
