@@ -17,7 +17,6 @@ def feishuNotify(status, summary) {
     def color = colorMap.get(status, 'red')
     def title = titleMap.get(status, '构建通知')
 
-    // 安全获取构建信息
     def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
     def buildTime = currentBuild.startTimeInMillis
         ? new Date(currentBuild.startTimeInMillis).format('yyyy-MM-dd HH:mm:ss')
@@ -100,6 +99,13 @@ ${cardJson}
 pipeline {
     agent any
 
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        disableConcurrentBuilds()
+    }
+
     parameters {
         choice(name: 'ENV', choices: ['dev','test','staging','prod'], description: '选择测试环境')
         choice(name: 'TEST_LEVEL', choices: ['smoke','regression','all'], description: '测试范围')
@@ -108,10 +114,15 @@ pipeline {
     }
 
     environment {
+        PYTHONIOENCODING    = 'utf-8'
+        PYTHONUNBUFFERED    = '1'
+        PIP_INDEX_URL       = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+        PIP_TRUSTED_HOST    = 'pypi.tuna.tsinghua.edu.cn'
+        PIP_DISABLE_PIP_VERSION_CHECK = '1'
+
         REPORTS_DIR   = 'reports/allure'
         FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
         PROJECT_NAME  = 'API 接口自动化测试'
-        // 虚拟环境和 pip 缓存放在 D 盘持久化目录，跨构建复用
         VENV_DIR      = 'D:\\jenkins\\venv\\api-framework'
         PIP_CACHE_DIR = 'D:\\jenkins\\venv\\pip-cache'
     }
@@ -124,21 +135,19 @@ pipeline {
         stage('② 环境准备') {
             steps {
                 script {
-                    def venvPython = "${env.VENV_DIR}\\Scripts\\python.exe"
                     def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
                     def reqHashFile = "${env.VENV_DIR}\\requirements-hash.txt"
 
-                    // ① 虚拟环境持久化：不存在时才创建
-                    if (fileExists(venvPython)) {
+                    // 虚拟环境持久化：不存在才创建
+                    if (fileExists("${env.VENV_DIR}\\Scripts\\activate.bat")) {
                         echo "✅ 虚拟环境已缓存，跳过创建"
                     } else {
-                        echo "🔄 首次构建，创建虚拟环境（持久路径: ${env.VENV_DIR}）..."
+                        echo "🔄 首次构建，创建虚拟环境..."
                         bat "python -m venv \"${env.VENV_DIR}\" --without-pip"
-                        // --without-pip 跳过了联网下载，用 ensurepip 本地安装 pip
-
+                        bat "${venvActivate} && python -m ensurepip --upgrade --default-pip"
                     }
 
-                    // ② 计算 requirements.txt 的哈希，检测是否变化
+                    // 检测 requirements.txt 哈希，没变就跳过安装
                     def oldHash = bat(
                         returnStdout: true,
                         script: "if exist \"${reqHashFile}\" (type \"${reqHashFile}\") else (echo.)"
@@ -149,9 +158,9 @@ pipeline {
                     ).trim()
 
                     if (oldHash != newHash) {
-                        echo "📦 requirements.txt 已变更，重新安装依赖..."
-                        bat "${venvActivate} && python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple -q"
-                        bat "${venvActivate} && pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple -q --cache-dir \"${env.PIP_CACHE_DIR}\""
+                        echo "📦 requirements.txt 已变更，安装依赖..."
+                        bat "${venvActivate} && python -m pip install --upgrade pip -q"
+                        bat "${venvActivate} && pip install -r requirements.txt -q --cache-dir \"${env.PIP_CACHE_DIR}\""
                         bat "echo ${newHash} > \"${reqHashFile}\""
                     } else {
                         echo "✅ 依赖未变化，跳过 pip install（缓存命中）"
@@ -177,9 +186,10 @@ pipeline {
         stage('④ 执行测试') {
             steps {
                 script {
-                    // 先清理上次的报告
-                    bat "if exist ${env.REPORTS_DIR} rmdir /S /Q ${env.REPORTS_DIR}"
+                    bat "if exist reports rmdir /S /Q reports"
+                    bat "mkdir reports"
 
+                    def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
                     def args = []
                     if (params.TEST_LEVEL == 'smoke') {
                         args << '-m' << 'smoke'
@@ -191,14 +201,13 @@ pipeline {
                         args << '--mode=mock'
                     }
                     args << '--alluredir' << env.REPORTS_DIR
+                    args << '--junitxml=reports/junit.xml'
                     args << 'tests/'
                     args << '--timeout=60'
 
                     echo "⏳ 执行: pytest ${args.join(' ')}"
 
-                    // 捕获 pytest 退出码但不中断流水线
                     try {
-                        def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
                         bat "${venvActivate} && pytest ${args.join(' ')}"
                     } catch (Exception e) {
                         echo "⚠ pytest 返回了非零退出码（有失败用例），继续执行..."
@@ -210,8 +219,8 @@ pipeline {
 
     post {
         always {
+            junit allowEmptyResults: true, testResults: 'reports/junit.xml'
             script {
-                // 安全发布 Allure 报告，不影响后续通知
                 try {
                     allure results: [[path: env.REPORTS_DIR]]
                 } catch (Exception e) {
