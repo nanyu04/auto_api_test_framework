@@ -11,6 +11,7 @@ class TestLogin:
     @pytest.mark.P0
     def test_login_with_multiple_users(self, context):
         """验证多个账号都能登录成功"""
+
         login_data = read_yaml(get_project_root() / "data/test_data/user_login.yaml")
         for k in login_data:
             login_param = k["request"]["json"]
