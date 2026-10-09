@@ -91,7 +91,18 @@ class AssertionEngine:
     # ==================== JSON Schema 校验 ====================
 
     def schema(self, schema_dict: dict) -> "AssertionEngine":
-        """JSON Schema 契约校验"""
+
+        """JSON Schema 契约校验
+        例子  schema_dict例子
+        API_RESPONSE_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["code", "message"],
+    "properties": {
+        "code": {"type": "integer"},
+        "message": {"type": "string"},
+        "data": {},
+    },"""
         try:
             jsonschema.validate(instance=self._json, schema=schema_dict)
         except jsonschema.ValidationError as e:

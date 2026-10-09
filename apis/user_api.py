@@ -12,25 +12,31 @@ class UserApi(BaseApi):
     """用户管理接口"""
 
     service_path = ""
+    def login(self, url,json_body: dict, **kwargs):
+        """登录 """
+        return self.post(path=url, json=json_body, **kwargs)
 
-    def create_user(self, json_body: dict, **kwargs):
+    def create_user(self, url,json_body: dict, **kwargs):
         """创建用户 """
-        return self.post(json=json_body, **kwargs)
+        return self.post(path=url,json=json_body, **kwargs)
+    def edit_user(self, url,json_body: dict, **kwargs):
+        """修改用户信息 """
+        return self.post(path=url, json=json_body, **kwargs)
 
-    def get_user(self, user_id: int, **kwargs):
+    def get_user(self,url, **kwargs):
         """查询用户 """
-        return self.post(str(user_id), **kwargs)
-    def user_list(self, params: Optional[dict] = None, **kwargs):
+        return self.post(path=url, **kwargs)
+    def user_list(self, url,params: Optional[dict] = None, **kwargs):
         """用户列表 """
-        return self.get(params=params, **kwargs)
+        return self.get(path=url,params=params, **kwargs)
 
-    def update_user(self, user_id: int, json_body: dict, **kwargs):
+    def update_user(self,url,  json_body: dict, **kwargs):
         """更新用户"""
-        return self.put(str(user_id), json=json_body, **kwargs)
+        return self.put(path=url, json=json_body, **kwargs)
 
-    def delete_user(self, user_id: int, **kwargs):
-        """删除用户 → DELETE /api/v1/users/{id}"""
-        return self.delete(str(user_id), **kwargs)
+    def delete_user(self, url, **kwargs):
+        """删除用户"""
+        return self.delete(path=url, **kwargs)
 
 
 # 全局单例

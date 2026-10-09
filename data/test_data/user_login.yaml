@@ -1,16 +1,15 @@
-
--
-    title: "用户注册使用的参数"
-    request:
-      json:
-        "userName": "student"
-        "password": ""
-        "remember": false
--
-    title: "用户注册使用的参数"
-    request:
-      json:
-        "userName": "admin"
-        "password": ""
-        "remember": false
+- title: "用户注册使用的参数"
+  url: "/api/user/login"
+  request:
+    json:
+      "userName": "student"
+      "password": "123456"
+      "remember": false
+- title: "用户注册使用的参数"
+  url: "/api/user/login"
+  request:
+    json:
+      "userName": "admin"
+      "password": "123456"
+      "remember": false
 

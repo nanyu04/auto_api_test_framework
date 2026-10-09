@@ -116,7 +116,7 @@ def register_user_contracts():
     from framework.contract import registry
 
     # TODO: 按实际接口调整 URL 和 Schema
-    registry.register("POST", "/api/v1/users",
+    registry.register("POST", "",
                       response_schema=API_RESPONSE_SCHEMA,
                       description="创建用户")
     registry.register("GET", "/api/v1/users/{id}",

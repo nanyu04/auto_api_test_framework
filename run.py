@@ -31,7 +31,7 @@ def run_tests():
     # 是否生成报告
     if "--report" in args:
         args.remove("--report")
-        #将["--alluredir", "reports/allure"]拆开，一个一个加入cmd列表
+        #extend将["--alluredir", "reports/allure"]拆开，一个一个加入cmd列表
         cmd.extend(["--alluredir", "reports/allure"])
         cmd.extend(args)
         #打开cmd 跑命令
