@@ -110,8 +110,10 @@ pipeline {
     environment {
         REPORTS_DIR   = 'reports/allure'
         FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
-        PIP_CACHE_DIR = "${WORKSPACE}\\pip_cache"
         PROJECT_NAME  = 'API 接口自动化测试'
+        // 虚拟环境和 pip 缓存放在工作空间外面，跨构建持久化
+        VENV_DIR      = "${env.USERPROFILE}\\.jenkins-venv\\api-framework"
+        PIP_CACHE_DIR = "${env.USERPROFILE}\\.jenkins-venv\\pip-cache"
     }
 
     stages {
@@ -121,9 +123,38 @@ pipeline {
 
         stage('② 环境准备') {
             steps {
-                bat 'if not exist .venv python -m venv .venv'
-                bat 'call .venv\\Scripts\\activate.bat && python -m pip install --upgrade pip -q'
-                bat "call .venv\\Scripts\\activate.bat && pip install -r requirements.txt -q --cache-dir ${PIP_CACHE_DIR}"
+                script {
+                    def venvPython = "${env.VENV_DIR}\\Scripts\\python.exe"
+                    def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
+                    def reqHashFile = "${env.VENV_DIR}\\requirements-hash.txt"
+
+                    // ① 虚拟环境持久化：不存在时才创建
+                    if (fileExists(venvPython)) {
+                        echo "✅ 虚拟环境已缓存，跳过创建"
+                    } else {
+                        echo "🔄 首次构建，创建虚拟环境（持久路径: ${env.VENV_DIR}）..."
+                        bat "python -m venv \"${env.VENV_DIR}\""
+                    }
+
+                    // ② 计算 requirements.txt 的哈希，检测是否变化
+                    def oldHash = bat(
+                        returnStdout: true,
+                        script: "if exist \"${reqHashFile}\" (type \"${reqHashFile}\") else (echo.)"
+                    ).trim()
+                    def newHash = powershell(
+                        returnStdout: true,
+                        script: "@(Get-FileHash -Path requirements.txt -Algorithm SHA256).Hash"
+                    ).trim()
+
+                    if (oldHash != newHash) {
+                        echo "📦 requirements.txt 已变更，重新安装依赖..."
+                        bat "${venvActivate} && python -m pip install --upgrade pip -q"
+                        bat "${venvActivate} && pip install -r requirements.txt -q --cache-dir \"${env.PIP_CACHE_DIR}\""
+                        bat "echo ${newHash} > \"${reqHashFile}\""
+                    } else {
+                        echo "✅ 依赖未变化，跳过 pip install（缓存命中）"
+                    }
+                }
             }
         }
 
@@ -165,7 +196,8 @@ pipeline {
 
                     // 捕获 pytest 退出码但不中断流水线
                     try {
-                        bat "call .venv\\Scripts\\activate.bat && pytest ${args.join(' ')}"
+                        def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
+                        bat "${venvActivate} && pytest ${args.join(' ')}"
                     } catch (Exception e) {
                         echo "⚠ pytest 返回了非零退出码（有失败用例），继续执行..."
                     }
