@@ -133,7 +133,9 @@ pipeline {
                         echo "✅ 虚拟环境已缓存，跳过创建"
                     } else {
                         echo "🔄 首次构建，创建虚拟环境（持久路径: ${env.VENV_DIR}）..."
-                        bat "python -m venv \"${env.VENV_DIR}\""
+                        bat "python -m venv \"${env.VENV_DIR}\" --without-pip"
+                        // --without-pip 跳过了联网下载，用 ensurepip 本地安装 pip
+                        bat "${venvActivate} && python -m ensurepip --upgrade --default-pip"
                     }
 
                     // ② 计算 requirements.txt 的哈希，检测是否变化
