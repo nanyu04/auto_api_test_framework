@@ -145,7 +145,7 @@ pipeline {
                     } else {
                         echo "🔄 首次构建，创建虚拟环境（持久路径: ${env.VENV_DIR}）..."
                         bat "python -m venv --without-pip \"${env.VENV_DIR}\""
-                        bat "\"${env.VENV_DIR}\Scripts\python.exe\" -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple"
+                        bat "\"${env.VENV_DIR}\\Scripts\\python.exe\" -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple"
                     }
 
                     // ② 计算 requirements.txt 的哈希，检测是否变化
