@@ -127,11 +127,11 @@ pipeline {
     }
 
     stages {
-        stage('① 拉取代码') {
+        stage('① getcode') {
             steps { checkout scm }
         }
 
-        stage('② 环境准备') {
+        stage('② envprepare') {
             steps {
                 script {
                     // ① 检查 python 是否被 WindowsApps 劫持（常见卡住原因）
@@ -164,7 +164,7 @@ pipeline {
             }
         }
 
-        stage('③ 加载配置') {
+        stage('③ config') {
             steps {
                 script {
                     def envFile = ".env.${params.ENV}"
@@ -178,7 +178,7 @@ pipeline {
             }
         }
 
-        stage('④ 执行测试') {
+        stage('④ test') {
             steps {
                 script {
                     // 先清理上次的报告
