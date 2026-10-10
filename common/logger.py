@@ -29,10 +29,16 @@ class LogManager:
 
         # ----- 控制台输出 -----
         if settings.LOG_FORMAT == "json":
+            # ⚠️ 这里必须用「函数 sink」，不能写成 format=self._json_format：
+            # loguru 会把 format 函数的返回值当成【模板字符串】，之后还要再跑一次
+            # format_map —— 而 _json_sink 返回的是已经渲染好的 JSON，里面的
+            # {"time": ...} 会被当成名为 "time" 的字段去取值，导致每写一条日志就
+            # KeyError: '"time"'、这条日志被整条丢弃（控制台只打印 Logging error）。
+            # 作为 sink 传进去就不一样了：loguru 把带 .record 的 message 交给我们，
+            # 我们自己决定写出什么，不再经过模板解析。这就是"给机器看的"日志。
             self._logger.add(
-                sys.stderr,# 需要输出到的位置  这个 sys.stderr 默认输出到控制台
+                self._json_sink,# 目标位置由 _json_sink 内部写 stderr（不带颜色/装饰，纯 JSON）
                 level=settings.LOG_LEVEL,
-                format=self._json_format,#为什么要另外一个函数呢，就是因为这是给机器看的，不能用彩色标注那些
             )
         else:
             self._logger.add(
@@ -77,20 +83,28 @@ class LogManager:
         )
     #---------------给机器使用的日志------------------
     @staticmethod
-    def _json_format(record):
-        """JSON 格式日志（供日志采集系统使用）"""
+    def _json_sink(message):
+        """JSON 格式日志 sink（供日志采集系统使用）
+
+        作为 sink 函数交给 logger.add()：loguru 会把带 .record 的 message 传进来，
+        我们在这里自己写 stderr。字段结构和以前完全一样，但转义交给 json.dumps
+        （日志里经常带引号和换行，比如请求体，所以不能自己拼字符串模板）。
+        """
         #这些record 写下日志以后都会立马自动生成的 就比如说logging.info() 就会马上生成对应的下面那些内容
-        return json.dumps(
-            {
-                "time": record["time"].strftime("%Y-%m-%d %H:%M:%S.%f"),
-                "level": record["level"].name,
-                "module": record["file"].name,
-                "line": record["line"],
-                "message": record["message"],
-            },
-            #确保中文能够正常显示
-            ensure_ascii=False,
-        ) + "\n"
+        record = message.record
+        sys.stderr.write(
+            json.dumps(
+                {
+                    "time": record["time"].strftime("%Y-%m-%d %H:%M:%S.%f"),
+                    "level": record["level"].name,
+                    "module": record["file"].name,
+                    "line": record["line"],
+                    "message": record["message"],
+                },
+                #确保中文能够正常显示
+                ensure_ascii=False,
+            ) + "\n"
+        )
 
     # ---------- 快捷方法，打印请求/响应详情 ----------
 

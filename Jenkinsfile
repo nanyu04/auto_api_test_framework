@@ -18,7 +18,27 @@ def feishuNotify(status, summary) {
     def title = titleMap.get(status, '构建通知')
 
     // 安全获取构建信息
-    def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'unknown'
+    // 普通 Pipeline 任务没有 BRANCH_NAME/GIT_BRANCH（那是多分支任务才有的变量），
+    // 之前这里直接兜底成了 unknown。Jenkins 是按 commit 检出的（游离 HEAD），
+    // 所以直接问工作区里的 git：哪个远程分支指向这个 commit。
+    def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH
+    if (!branchName) {
+        try {
+            def gitOut = bat(returnStdout: true, script: '''@echo off
+git branch -r --points-at HEAD
+''')
+            for (line in gitOut.readLines()) {
+                def ref = line.trim()
+                if (ref.startsWith('origin/') && !ref.endsWith('/HEAD')) {
+                    branchName = ref.substring(7)
+                    break
+                }
+            }
+        } catch (Exception e) {
+            echo "⚠ 读取分支名失败，退回 unknown: ${e.message}"
+        }
+    }
+    if (!branchName) { branchName = 'unknown' }
     def buildTime = currentBuild.startTimeInMillis
         ? new Date(currentBuild.startTimeInMillis).format('yyyy-MM-dd HH:mm:ss')
         : 'N/A'
@@ -82,7 +102,10 @@ def feishuNotify(status, summary) {
             \$body = @'
 ${cardJson}
 '@
-            \$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json" -Body \$body
+            # 关键：Invoke-RestMethod 直接传字符串时，PowerShell 5.1 会按 ASCII 编码请求体，
+            # 中文和 emoji 全部会变成 "?"，所以必须自己转成 UTF-8 字节再发。
+            \$bytes = [System.Text.Encoding]::UTF8.GetBytes(\$body)
+            \$response = Invoke-RestMethod -Uri ${env.FEISHU_URL} -Method Post -ContentType "application/json; charset=utf-8" -Body \$bytes
             if (\$response.code -ne 0) {
                 Write-Warning "飞书通知返回异常: \$(\$response | ConvertTo-Json -Compress)"
             } else {
