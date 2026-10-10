@@ -16,6 +16,7 @@ class DataFactory:
 
     # ========== 用户相关 ==========
 
+
     @staticmethod
     def create_user_payload(**overrides: Any) -> dict:
         """创建用户请求数据"""
