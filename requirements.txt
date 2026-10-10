@@ -173,3 +173,12 @@ zstandard==0.25.0
 pytest==9.0.2
 pytest-timeout==2.4.0
 allure-pytest==2.16.0
+
+# ============ 代码 import、但此前漏写的运行时依赖 ============
+# 缺了这些，pytest 连 conftest.py 都加载不了（用例数为 0，Allure 只能生成空报告）
+# 故意不锁版本：这几项从未锁过，锁到源上不存在的版本会让 CI 直接装不上
+loguru
+deepdiff
+jsonpath_ng
+respx
+faker
