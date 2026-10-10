@@ -134,17 +134,27 @@ pipeline {
         stage('② 环境准备') {
             steps {
                 script {
-                    def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
+                    // ① 检查 python 是否被 WindowsApps 劫持（常见卡住原因）
+                    def pythonPath = bat(
+                        returnStdout: true,
+                        script: "where python"
+                    ).trim().readLines().first()
+                    echo "🔍 使用的 Python: ${pythonPath}"
+                    if (pythonPath.contains('WindowsApps')) {
+                        error "Python 被 WindowsApps 占位符劫持！请将 Python 安装路径移到 WindowsApps 前面"
+                    }
 
                     echo "🔄 创建虚拟环境..."
                     bat """
                         if exist "${env.VENV_DIR}" rmdir /s /q "${env.VENV_DIR}"
+                        if not exist "${env.PIP_CACHE_DIR}" mkdir "${env.PIP_CACHE_DIR}"
                         python -m venv --without-pip "${env.VENV_DIR}"
                     """
 
-                    // 只用 bat 解决激活问题
+                    echo "📦 安装 pip 和依赖..."
                     bat """
                         call "${env.VENV_DIR}\\Scripts\\activate.bat"
+                        python -m ensurepip --upgrade
                         python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple -q
                         pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple -q --cache-dir "${env.PIP_CACHE_DIR}"
                     """
