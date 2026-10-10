@@ -122,9 +122,8 @@ pipeline {
         REPORTS_DIR   = 'reports/allure'
         FEISHU_URL    = 'https://open.feishu.cn/open-apis/bot/v2/hook/91e4d0a5-ed8c-4393-ab8a-2f1e8d631954'
         PROJECT_NAME  = 'API 接口自动化测试'
-        // 虚拟环境和 pip 缓存放在 D 盘持久化目录，跨构建复用
-        VENV_DIR      = 'D:\\jenkins\\venv\\api-framework'
-        PIP_CACHE_DIR = 'D:\\jenkins\\venv\\pip-cache'
+        VENV_DIR      = 'venv'                         // 工作空间内，用完即删
+        PIP_CACHE_DIR = 'D:\\jenkins\\pip-cache'       // 持久化，跨构建复用
     }
 
     stages {
@@ -135,37 +134,22 @@ pipeline {
         stage('② 环境准备') {
             steps {
                 script {
-                    def venvPython = "${env.VENV_DIR}\\Scripts\\python.exe"
                     def venvActivate = "call \"${env.VENV_DIR}\\Scripts\\activate.bat\""
-                    def reqHashFile = "${env.VENV_DIR}\\requirements-hash.txt"
 
-                    // ① 虚拟环境持久化：不存在时才创建
-                    if (fileExists(venvPython)) {
-                        echo "✅ 虚拟环境已缓存，跳过创建"
-                    } else {
-                        echo "🔄 首次构建，创建虚拟环境（持久路径: ${env.VENV_DIR}）..."
-                        bat "python -m venv --without-pip \"${env.VENV_DIR}\""
-                        bat "\"${env.VENV_DIR}\\Scripts\\python.exe\" -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple"
-                    }
+                    echo "🔄 创建虚拟环境..."
+                    bat """
+                        if exist "${env.VENV_DIR}" rmdir /s /q "${env.VENV_DIR}"
+                        python -m venv --without-pip "${env.VENV_DIR}"
+                    """
 
-                    // ② 计算 requirements.txt 的哈希，检测是否变化
-                    def oldHash = bat(
-                        returnStdout: true,
-                        script: "if exist \"${reqHashFile}\" (type \"${reqHashFile}\") else (echo.)"
-                    ).trim()
-                    def newHash = powershell(
-                        returnStdout: true,
-                        script: "@(Get-FileHash -Path requirements.txt -Algorithm SHA256).Hash"
-                    ).trim()
+                    // 只用 bat 解决激活问题
+                    bat """
+                        call "${env.VENV_DIR}\\Scripts\\activate.bat"
+                        python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple -q
+                        pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple -q --cache-dir "${env.PIP_CACHE_DIR}"
+                    """
 
-                    if (oldHash != newHash) {
-                        echo "📦 requirements.txt 已变更，重新安装依赖..."
-                        bat "${venvActivate} && python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple -q"
-                        bat "${venvActivate} && pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple -q --cache-dir \"${env.PIP_CACHE_DIR}\""
-                        bat "echo ${newHash} > \"${reqHashFile}\""
-                    } else {
-                        echo "✅ 依赖未变化，跳过 pip install（缓存命中）"
-                    }
+                    echo "✅ 环境准备完成"
                 }
             }
         }
@@ -230,8 +214,9 @@ pipeline {
                     echo "⚠ Allure 报告发布失败: ${e.message}"
                 }
             }
-            // 清理临时文件，保留虚拟环境缓存
+            // 清理工作空间，虚拟环境用完即删
             bat '''
+                if exist venv rmdir /s /q venv
                 if exist .pytest_cache rmdir /s /q .pytest_cache
                 if exist reports rmdir /s /q reports
                 for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d"
