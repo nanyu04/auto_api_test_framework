@@ -44,6 +44,7 @@ class TestContractSchema:
                     f"在 properties 中未定义"
                 )
 
+
     @pytest.mark.contract
     def test_coverage_summary(self):
         """打印注册覆盖率"""
