@@ -28,7 +28,7 @@ class TestContractSchema:
                     jsonschema.Draft7Validator.check_schema(reg.response_schema)
                 except Exception as e:
                     pytest.fail(f"Schema 不合法: {reg.description}\n  {e}")
-
+    @pytest.mark.smoke
     @pytest.mark.contract
     def test_required_fields_have_definitions(self):
         """required 字段必须在 properties 中有定义"""
