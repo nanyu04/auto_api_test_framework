@@ -14,7 +14,7 @@ import jsonschema
 
 class TestContractSchema:
     """契约测试 — Schema 合法性验证"""
-
+    @pytest.mark.smoke
     @pytest.mark.contract
     def test_all_registered_schemas_are_valid(self):
         """所有注册的 Schema 自身必须是合法的 JSON Schema"""
