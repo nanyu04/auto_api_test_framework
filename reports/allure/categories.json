@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Mock 未注册",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*NoMockAddress.*"
+  },
+  {
+    "name": "环境/依赖问题",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(ConnectionError|ConnectTimeout|ReadTimeout|Max retries exceeded|Failed to establish).*"
+  },
+  {
+    "name": "业务断言不通过",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*(AssertionError|assert|断言|expected).*"
+  },
+  {
+    "name": "其他失败（待归类）",
+    "matchedStatuses": ["failed", "broken"]
+  },
+  {
+    "name": "全部通过",
+    "matchedStatuses": ["passed"]
+  }
+]

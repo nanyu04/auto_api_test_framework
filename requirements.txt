@@ -181,4 +181,5 @@ loguru
 deepdiff
 jsonpath_ng
 respx
+requests_mock
 faker

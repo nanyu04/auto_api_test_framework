@@ -71,7 +71,7 @@ def global_client() -> HttpClient:
 def mock_server(test_mode) -> MockServer:
     ms = MockServer(settings.BASE_URL)
     if test_mode in (MockMode.MOCK, MockMode.HYBRID):
-        ms.start()
+        ms.start(mode=test_mode)  # 关键：把模式传给 start，让它决定 real_http
     yield ms
     ms.stop()
 

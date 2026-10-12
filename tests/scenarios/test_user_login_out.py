@@ -1,3 +1,4 @@
+import allure
 from openai import responses
 from common import logger, AssertionEngine
 
