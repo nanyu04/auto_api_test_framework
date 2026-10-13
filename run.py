@@ -42,6 +42,10 @@ def run_tests():
         cmd.extend(args)
         # 进入 cwd 的目录 然后运行cmd 的命令
         subprocess.run(cmd, cwd=Path(__file__).parent)
-
+"""
+| 场景 | 建议 |
+|---|---|
+| 快速本地验证、就想看终端结果 | 直接 `pytest -m "P0" --mode=hybrid`（最直观） |
+| 想要 allure 报告 | `python run.py -m "P0" --mode=hybrid --report` |"""
 if __name__ == "__main__":
     run_tests()

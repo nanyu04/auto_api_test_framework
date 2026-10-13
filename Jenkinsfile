@@ -122,25 +122,7 @@ ${cardJson}
 // ============================================================
 pipeline {
     // ==========================================================================
-    // ⚠️⚠️ 千万别把工作区路径改成带中文的！否则所有 bat 步骤会静默卡死一小时 ⚠️⚠️
-    //
-    // 事故现象（2026-10-10 构建 #25~#30）：stage ② 的 bat 步骤一行输出都没有，
-    //   一直挂到流水线 60 分钟超时；同一构建里的 powershell 步骤却是正常的。
-    //
-    // 真正原因（已在本机做 A/B 实验确认）：
-    //   1. Jenkins（JDK 21）把 durable-task 的临时脚本 jenkins-wrap.bat 按 UTF-8 写盘；
-    //   2. cmd.exe 执行 .bat 时按系统 ANSI 代码页(936/GBK)解析文件里的路径；
-    //   3. 任务名是中文 → 默认工作区 C:\Users\29325\.jenkins\workspace\xzs后端项目api测试，
-    //      .bat 里的中文路径被解成乱码 → cmd 找不到 jenkins-main.bat，
-    //      也建不出 Jenkins 要轮询的 jenkins-log.txt；
-    //   4. Jenkins 永远等不到日志文件 → 步骤既不报错也不结束 → 静默挂到超时。
-    //   （powershell 步骤用 -EncodedCommand，编码无关，所以不受影响；
-    //     Allure 插件走的是 Java 直接起进程，也不受影响。）
-    // 实验对照：同一份 wrap 脚本，放 ASCII 路径下 → 正常产出 jenkins-log.txt；
-    //           放中文路径下 → 什么都没有。隔壁 ASCII 任务 py-api-test-pipeline 的 bat 全部正常。
-    //
-    // 结论：工作区必须是纯 ASCII。这里用 customWorkspace 固定到 D 盘英文目录。
-    // ==========================================================================
+
     agent {
         node {
             label 'built-in'                              // 固定在内置节点（build-agent-01 当前是离线的）
@@ -162,6 +144,7 @@ pipeline {
 
     parameters {
         choice(name: 'ENV', choices: ['dev','test','staging','prod'], description: '选择测试环境')
+        //新增标签以后在表格内填入
         choice(name: 'TEST_LEVEL', choices: ['smoke','regression','all'], description: '测试范围')
         string(name: 'MARKER', defaultValue: '', description: '自定义 pytest marker（优先级高于测试范围，可用 and/or/not）')
         booleanParam(name: 'MOCK_MODE', defaultValue: false, description: '启用 Mock 模式')
