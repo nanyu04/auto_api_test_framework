@@ -34,7 +34,7 @@ def pytest_configure(config):
 
 #解析命令行参数时
 def pytest_addoption(parser):
-    parser.addoption("--mode", action="store", default="live",
+    parser.addoption("--mode", action="store", default="hybrid",
                      choices=["live", "mock", "hybrid"],
                      help="测试模式: live=真实服务, mock=全部Mock, hybrid=混合")
     parser.addoption("--no-cleanup", action="store_true", default=False,
@@ -59,7 +59,7 @@ def session_banner(test_mode):
     yield
     logger.info("🏁 全部测试执行完毕")
 
-
+#不写这个的话CI 上用一个进程跑很多轮测试 就容易出现连接数超了的问题，因为他只有在测试结束以后才会自动关闭
 @pytest.fixture(scope="session")
 def global_client() -> HttpClient:
     client = HttpClient()

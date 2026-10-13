@@ -246,7 +246,8 @@ pipeline {
                         args << '-m' << "\"${marker}\""   // 加引号，支持 "smoke and not slow" 这种写法
                     }
                     if (params.MOCK_MODE) {
-                        args << '--mode=mock'
+                    // 这里修改mock模式的类别
+                        args << '--mode=hybrid'
                     }
                     args << '--alluredir' << env.REPORTS_DIR
                     args << '-v'

@@ -1,0 +1,20 @@
+- title: "更新修改用户信息"
+  url: "/api/student/user/update"
+  request:
+    json:
+      "id": 14,
+      "userUuid": "d2d29da2-dcb3-4013-b874-727626236f47"
+      "userName": "student"
+      "realName": "Test"
+      "age": 18
+      "role": 1
+      "sex": 1
+      "birthDay": "2019-09-01 00:00:00"
+      "phone": "158800882"
+      "lastActiveTime": ""
+      "createTime": "2019-09-07 18:55:02"
+      "modifyTime": "2021-06-09 17:04:31"
+      "status": 1
+      "userLevel": 1
+      "classes": "1班"
+      "imagePath": ""

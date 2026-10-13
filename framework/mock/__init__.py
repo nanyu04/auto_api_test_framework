@@ -39,7 +39,7 @@ from config import settings
 
 class MockMode(Enum):
     LIVE = "live"    # 请求真实服务
-    MOCK = "mock"    # 全部拦截
+    MOCK = "mock"    # 全部拦截 没注册的直接报异常
     HYBRID = "hybrid"  # 注册了的 mock，没注册的透传
 
 
