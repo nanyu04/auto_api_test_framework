@@ -1,0 +1,8 @@
+- title: "试卷分页"
+  url: "/api/student/exam/paper/pageList"
+  request:
+    json:
+      "paperType": 1
+      "subjectId": 158
+      "pageIndex": 1
+      "pageSize": 10

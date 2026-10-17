@@ -36,7 +36,7 @@ class UserBuilder:
         d = {"name": self._name, "email": self._email, "age": self._age}
         if self._phone:
             d["phone"] = self._phone
-        return d
+        return self
 
 
 class OrderBuilder:

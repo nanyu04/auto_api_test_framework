@@ -1,0 +1,16 @@
+- title: "提交用户答题试卷"
+  url: "/api/student/user/update"
+  request:
+    json:
+      "questionId": null
+      "doTime": 14
+      "answerItems":
+        - "questionId": 4
+          "content": null
+          "contentArray":
+            - "测试"
+            - "1"
+          "completed": true
+          "itemOrder": 1
+      "id": 4
+

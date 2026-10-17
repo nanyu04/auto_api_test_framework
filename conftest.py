@@ -19,6 +19,9 @@ from framework import (
     TestContext, MockServer, MockMode, registry,
 )
 
+# tests/fixtures/ 下的模块不会被自动加载，必须在这里显式注册
+pytest_plugins = ["tests.fixtures.user_fixtures"]
+
 
 # ==================== 初始化钩子（session 启动时执行一次） ====================
 
