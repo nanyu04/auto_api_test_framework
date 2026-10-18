@@ -14,13 +14,9 @@ MockRoute         → 定义"拦截什么"（method + URL pattern）→ 绑定 M
 MockProfile       → 把一组 MockRoute 打包，给个名字方便管理
                      ↓
 MockServer        → 真正的"执行者"
-                      1. respx.mock()  → 建拦截器
-                      2. start()       → 启动拦截
-                      3. load + _apply_profile  → 把 Profile 里的路由注册进 respx
-
-                      请求有两种方式一种是拦截httpx库的httpx  对应的就是httpx
-                     还有一种是对应requests库的requests 请求  对应的就是requests_Mock
-
+                      1. 用 requests_mock.Mocker 建拦截器
+                      2. start() 启动拦截
+                      3. load(profile) 把 Profile 中的路由注册到拦截器
 """
 import os
 import json
@@ -53,12 +49,10 @@ def current_mode() -> MockMode:
 #  Mock 定义结构
 # =============================================================
 
-#装着假相应的数据容器
 @dataclass
 class MockResponse:
     status: int = 200
     body: Any = None
-    #相当于每次创建了这个类的对象都会重新生成一个headers生成一个独立的新字典
     headers: Dict[str, str] = field(default_factory=lambda: {"content-type": "application/json"})
 
 
@@ -90,7 +84,6 @@ class MockProfile:
     def register(self, method: str, pattern: str,
                  response: MockResponse | dict, dynamic: bool = False):
         """注册一条 mock 路由"""
-        #isinstance 检查是否是这两个类型
         if isinstance(response, dict):
             response = MockResponse(**response)
         self._routes.append(MockRoute(method.upper(), pattern, response, dynamic))
@@ -132,15 +125,13 @@ class MockServer:
       - 加载 MockProfile 注册路由
       - 动态响应生成（如需）
 
-    底层曾用 respx（只能拦 httpx），现已换成 requests_mock，对应我的项目
-    跟项目 HttpClient 的 requests 库直接配对。
+    底层用 requests_mock 拦截 requests 请求，与 HttpClient 使用的库一致。
     """
 
     def __init__(self, base_url: str):
         self._base_url = base_url.rstrip("/")
-        self._profiles: List[MockProfile] = []#存多个profile
-        self._respx_mock = None            # [旧] respx 实例（已废弃，保留字段避免外部引用报错）
-        self._mock_adapter = None          # [新] requests_mock.Mocker 实例 — 专门拦 requests
+        self._profiles: List[MockProfile] = []
+        self._mock_adapter = None          # requests_mock.Mocker 实例
         self._active = False
 
     def load(self, profile: MockProfile) -> "MockServer":
@@ -149,7 +140,6 @@ class MockServer:
         if self._active:
             self._apply_profile(profile)
         return self
-    #初始化respx 加载路由
     def start(self, mode: MockMode = MockMode.MOCK):
         """启动 Mock（启用 requests_mock 拦截）
 
@@ -160,31 +150,20 @@ class MockServer:
         if self._active:
             return
 
-        # ── [旧] respx 版（只能拦 httpx，HttpClient 走的是 requests → 根本拦不到）──
-        # import respx
-        # self._respx_mock = respx.mock(assert_all_called=False, using="httpx")
-        # self._respx_mock.start()
-
-        # ── [新] requests_mock 版 — 跟 HttpClient 的 requests 直接配对 ──
+        # ── 用 requests_mock 拦截 requests（HttpClient 走的正是 requests）──
         import requests_mock
         self._mock_adapter = requests_mock.Mocker(
             real_http=(mode == MockMode.HYBRID),  # HYBRID 允许未命中时走真实网络
-        ) #这一步创建一个实例和上面一样
+        )
         self._mock_adapter.start()
         self._active = True
-        # 加载所有 profile 就是告诉他怎么拦截 加载路由
+        # 加载 start() 之前已经 load 进来的 profile
         for profile in self._profiles:
             self._apply_profile(profile)
         logger.info(f"  🎭 [MockServer] 已启动 (BASE: {self._base_url})")
 
     def stop(self):
-        # ── [旧] respx 版 ──
-        # if self._active and self._respx_mock:
-        #     self._respx_mock.stop()
-        #     self._active = False
-        #     logger.info("  🎭 [MockServer] 已停止")
-
-        # ── [新] requests_mock 版 ──
+        # ── 停止拦截 ──
         if self._active and self._mock_adapter:
             self._mock_adapter.stop()
             self._active = False
@@ -193,18 +172,7 @@ class MockServer:
     def _apply_profile(self, profile: MockProfile):
         """将 profile 的路由注册到拦截器"""
 
-        # ── [旧] respx 版（.respond() 语法）──
-        # if not self._respx_mock:
-        #     return
-        # for route in profile.get_routes():
-        #     full_url = f"{self._base_url}/{route.pattern.lstrip('/')}"
-        #     getattr(self._respx_mock, route.method.lower())(full_url).respond(
-        #         status_code=route.response.status,
-        #         json=route.response.body,
-        #         headers=route.response.headers,
-        #     )
-
-        # ── [新] requests_mock 版（直接传 json/status_code/headers）──
+        # ── 把路由注册到拦截器 ──
         if not self._mock_adapter:
             return
         for route in profile.get_routes():

@@ -63,9 +63,8 @@ class AssertionEngine:
             kwargs:          DeepDiff 的其他参数
         """
         body = self._json
-        #DeepDiff 是第三方库 deepdiff 提供的一个深度比对工具。作用是：把两个数据结构逐层、逐个字段地比一遍，把不同的地方都列出来。
         diff = DeepDiff(body, expected, exclude_paths=exclude_paths, **kwargs)
-        if diff: #不是假  就是非空 就是有差异的意思
+        if diff:
             logger.error(f"  ✗ JSON 不匹配:\n{diff.pretty()}")
             raise AssertionError(f"JSON 不匹配:\n{diff.pretty()}")
         logger.info("  ✓ 全量 JSON 校验通过")
@@ -93,16 +92,9 @@ class AssertionEngine:
     def schema(self, schema_dict: dict) -> "AssertionEngine":
 
         """JSON Schema 契约校验
-        例子  schema_dict例子
-        API_RESPONSE_SCHEMA = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["code", "message"],
-    "properties": {
-        "code": {"type": "integer"},
-        "message": {"type": "string"},
-        "data": {},
-    },"""
+
+        用法: ae.schema(API_RESPONSE_SCHEMA)
+        """
         try:
             jsonschema.validate(instance=self._json, schema=schema_dict)
         except jsonschema.ValidationError as e:
@@ -179,7 +171,6 @@ class AssertionEngine:
         return self
 
     # ==================== 值提取（供后续用例使用） ====================
-    #这个field 就是 data.user.name  就相当于是哪一层哪一层这样子 要精准到键
     def extract(self, field: str, default: Any = None) -> Any:
         """
         从响应中提取字段值（点号分隔嵌套）
@@ -196,7 +187,6 @@ class AssertionEngine:
         return current
 
     # ==================== 私有方法 ====================
-    #
     @property
     def _json(self) -> Any:
         if self._json_body is None:

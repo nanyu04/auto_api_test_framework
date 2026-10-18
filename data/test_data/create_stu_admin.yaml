@@ -6,13 +6,6 @@
       "password": "123456"
       "userLevel": 1
 
-
-
-
-
-
-
-
 - title: "在管理员状态下用于创建管理员或者是学生用户的账号"
   url: "/api/admin/user/edit"
   request:

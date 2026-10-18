@@ -1,57 +1,34 @@
-# """
-# 【场景测试】— 用户全生命周期（冒烟测试）
-#
-# 一个测试内完成创建 → 查询 → 更新 → 查询 → 删除 → 验证删除。
-# 覆盖核心业务流程，不依赖任何外部状态。
-# """
-# import pytest
-# from common import AssertionEngine, logger
-# from apis import user_api
-# from data import factory
-#
-#
-# @pytest.mark.smoke
-# @pytest.mark.P0
-# def test_user_full_lifecycle(context):
-#     """
-#     用户完整生命周期
-#
-#     这个测试在 CI 中被标记为 smoke + P0，
-#     每次部署前必跑。
-#     """
-#     # ===== Phase 1: 准备 & 创建 =====
-#     payload = context.tag(factory.create_user_payload())
-#     logger.info(f"  创建用户: name={payload.get('name')}")
-#
-#     resp = user_api.create(payload)
-#     ae = AssertionEngine(resp)
-#     ae.status_code(201).jsonpath_eq("$.code", 0).has_field("data.id")
-#     user_id = ae.extract("data.id")
-#     context.lifecycle.created("user", user_id)
-#
-#     # ===== Phase 2: 查询 =====
-#     resp = user_api.get(user_id)
-#     (AssertionEngine(resp)
-#         .status_code(200)
-#         .jsonpath_eq("$.data.id", user_id))
-#
-#     # ===== Phase 3: 更新 =====
-#     new_name = f"updated_{user_id}"
-#     resp = user_api.update(user_id, {"name": new_name})
-#     AssertionEngine(resp).status_code(200)
-#
-#     # ===== Phase 4: 验证更新已生效 =====
-#     resp = user_api.get(user_id)
-#     (AssertionEngine(resp)
-#         .status_code(200)
-#         .jsonpath_eq("$.data.name", new_name))
-#
-#     # ===== Phase 5: 删除 =====
-#     resp = user_api.delete(user_id)
-#     AssertionEngine(resp).status_code(204)
-#
-#     # ===== Phase 6: 验证删除 =====
-#     resp = user_api.get(user_id)
-#     AssertionEngine(resp).status_code(404)
-#
-#     logger.info("  ✅ 全生命周期通过")
+﻿from apis import user_api
+from common import logger, AssertionEngine
+from utils import read_yaml, get_project_root
+
+
+class TestCreateLifecycle:
+    def test_create_lifecycle(self, logged_in_admin, context):
+        """
+        用管理员身份创建一个测试用户，测试结束自动删除
+
+        创建用户走的是管理员接口，所以先依赖 logged_in_admin 完成登录。
+
+        用法：
+            def test_something(a_new_stu):
+                user_id = a_new_stu["id"]
+                # ... 对该用户进行操作
+        """
+        logger.info("---------------------开始进行用户创建标记操作--------------------")
+        create_user_data = read_yaml(get_project_root() / "data/test_data/create_stu_admin.yaml")
+        create_user_url = create_user_data[1]["url"]
+        create_user_json = create_user_data[1]["request"]["json"]
+        # userName 是学之思的字段名，必须显式指定，否则不打唯一后缀，重复执行会撞名
+        payload = context.tag(create_user_json, ["userName"])
+        resp = user_api.create_user(create_user_url, payload)
+        ae = AssertionEngine(resp)
+        ae.status_code(200).jsonpath_eq("$.code",1).has_field("response.id")
+        user_id = ae.extract("response.id")
+        assert user_id, f"创建成功了却没拿到 id —— 响应: {resp.text}"
+        logger.info("----------------------开始查询用户是否正常创建------------------")
+        check_user_alive = user_api.get_user(f"/api/admin/user/select/{user_id}")
+        AssertionEngine(check_user_alive).status_code(200).jsonpath_eq("$.code",1)
+        logger.info("----------------------开始添加进用户数据管理中心里面---------")
+        context.lifecycle.created("user", user_id)
+

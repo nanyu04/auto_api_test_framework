@@ -18,7 +18,6 @@ from typing import Optional, Any
 # =============================================================
 
 class CreateUserRequest(BaseModel):
-    #...就是没有默认值是必填项
     name: str = Field(..., min_length=1, max_length=50)
     email: str = Field(...)
     age: int = Field(default=0, ge=0, le=150)
@@ -66,7 +65,6 @@ class PageData(BaseModel):
 # =============================================================
 #  JSON Schema 定义
 # =============================================================
- #规划它的版本schema的版本 "$schema": "http://json-schema.org/draft-07/schema#",
 USER_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
@@ -115,7 +113,7 @@ def register_user_contracts():
     """注册用户模块的所有 API 端点 Schema"""
     from framework.contract import registry
 
-    # TODO: 按实际接口调整 URL 和 Schema
+    # TODO: 替换为学之思考试系统的真实接口路径
     registry.register("POST", "",
                       response_schema=API_RESPONSE_SCHEMA,
                       description="创建用户")
@@ -148,4 +146,3 @@ __all__ = [
     "USER_SCHEMA", "PAGE_SCHEMA", "API_RESPONSE_SCHEMA",
     "register_user_contracts",
 ]
-print(Path(__file__))

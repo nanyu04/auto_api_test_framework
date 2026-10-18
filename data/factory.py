@@ -2,14 +2,11 @@
 【数据工厂】 — 基于 Faker 的测试数据生成
 
 每个方法生成业务含义明确的测试数据，支持 override 覆盖特定字段。
-data.update(overrides) 就是把传进来的参数盖到默认数据上面。
 
 """
 from typing import Any, Optional
 from faker import Faker
-#用中文词库来造假
 _faker = Faker(locale="zh_CN")
-#Faker(locale="en_US")	John Smith、Alice Brown
 
 class DataFactory:
     """测试数据工厂"""
@@ -56,7 +53,6 @@ class DataFactory:
         return data
 
     # ========== 通用 ==========
-    #max_nb_chars，意思是 "最多生成多少个字符"。
     @staticmethod
     def text(min_len: int = 5, max_len: int = 50) -> str:
         return _faker.text(max_nb_chars=max_len)[:max_len]

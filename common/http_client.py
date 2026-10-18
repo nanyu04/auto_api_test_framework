@@ -28,7 +28,6 @@ class HttpClient:
 
     def __init__(self, base_url: Optional[str] = None):
         self.base_url = (base_url or settings.BASE_URL).rstrip("/")
-        # 加一个_不建议外部访问建议在内部访问
         self._session = Session()
         self._init_session()
 
@@ -36,14 +35,11 @@ class HttpClient:
 
     def _init_session(self):
         """初始化 Session 默认值"""
-        #① 第一批：业务默认头
         self._session.headers.update({
             "Accept": "application/json",
             "Content-Type": "application/json",
-            #标明"是哪个客户端发的请求"（这里是你的测试框架）
             "User-Agent": f"ApiTestFramework/{settings.API_VERSION}",
         })
-        # 注入全局鉴权② 第二批：鉴权头（来自配置）就是在请求头的位置加上鉴权
         self._session.headers.update(settings.auth_headers)
 
     # ==================== 公开请求方法 ====================
@@ -90,23 +86,18 @@ class HttpClient:
           - 异常包装
         """
         full_url = self._build_url(url)
-        #这个就是取值 取得到就用kwargs的值  提取不到就用默认值
         timeout = kwargs.pop("timeout", settings.REQUEST_TIMEOUT)
         extra_headers = kwargs.pop("headers", None)
 
-        # 构造 PreparedRequest 造一个"请求意图"
+        # 先构造 PreparedRequest 再发送：拿到即将发出的请求，便于统一打印日志和做契约校验
         req_obj = Request(method, full_url, headers=extra_headers, **kwargs)
-        #为什么要使用分三步发送请求呢？不能直接一步到位get post
-        # 用 prepare_request 手动拆开 → 你手里有"发送前的完整请求"（prepped），想打印就打印，想改就改
-        # 用 session.get/post 简写 → 一步到位直接返回 resp，中间那个"即将发出的请求"你根本没机会碰到
-        prepped = self._session.prepare_request(req_obj)#② 把它"加工"成可发送的形态
+        prepped = self._session.prepare_request(req_obj)
 
         # 打印请求日志
         logger.print_request(method, full_url, dict(prepped.headers), prepped.body)
 
         # 发送请求
         try:
-            # 真正发出去
             resp = self._session.send(prepped, timeout=timeout)
         except req.Timeout:
             logger.error(f"⏰ 请求超时 [{timeout}s]: {method} {full_url}")
@@ -155,7 +146,6 @@ class HttpClient:
             from framework.contract import registry
             if registry.is_enabled:
                 try:
-                    #拿到响应，把响应体从 JSON 字符串解析成 Python 字典，存到 body 变量里。
                     body = response.json()
                 except Exception:
                     body = None

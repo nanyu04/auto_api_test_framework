@@ -11,18 +11,14 @@ class TestMockStuEdit:
     @pytest.mark.smoke
     @pytest.mark.P0
     def test_mock_stu_edit(self, mock_server, logged_in_student):
-        # 读取对应的url地址
         edit_data = read_yaml(get_project_root() / "data/test_data/stu_update_info.yaml")
         edit_url = edit_data[0]["url"]
         edit_json = edit_data[0]["request"]["json"]
-        # 注册对应的profile
         register_mock_edit_profile = MockProfile("用户编辑模块的mock测试")
         register_mock_edit_profile.post(edit_url, MockResponse(status=201,
                                                                body="用户编辑成功成功成功mock模拟成功了 通过了mock模拟测试",
                                                                headers={"Content-Type": "application/json"}))
-        # 加载路由
         load_mock = mock_server.load(register_mock_edit_profile)
-        # 开始发送真实请求
         edit_user = logged_in_student.edit_user(edit_url, edit_json)
         AssertionEngine(edit_user).status_code(201)
 
@@ -32,7 +28,6 @@ class TestMockStuTpaper:
     @pytest.mark.P0
     def test_mock_stu_tpaper(self, mock_server, logged_in_student):
         tpaper_url = "/api/student/exampaper/answer/read/4"
-        # 注册对应的profile
         register_mock_Tpaper_profile = MockProfile("用户查询试卷模块的mock测试")
         register_mock_Tpaper_profile.post(tpaper_url, MockResponse(status=200,
                                                                    body="你没有考试试卷，你已经全部满分通过了",

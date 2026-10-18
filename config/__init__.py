@@ -2,7 +2,6 @@
 ====================================================
   API 自动化测试框架 — 全局配置中心
   基于 pydantic-settings，支持多环境 + 环境变量覆盖
-  Basesetting将类属性转变为实例属性直接调
 ====================================================
 """
 from pathlib import Path
@@ -22,7 +21,6 @@ class GlobalConfig(BaseSettings):
     """
 
     # -------------------- 项目路径 --------------------
-    # 拿到项目的根目录  Path(__file__) 项目的绝对路径 .resolve()切换为绝对路径
     ROOT_DIR: Path = Path(__file__).resolve().parent.parent
 
     # -------------------- 环境选择 --------------------
@@ -48,7 +46,7 @@ class GlobalConfig(BaseSettings):
 
     # -------------------- 日志配置 --------------------
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "standard"  # standard  人读日志文本 | json 机器读取 输出形式
+    LOG_FORMAT: str = "standard"  # standard=人读文本 / json=结构化日志
 
     # -------------------- 报告配置 --------------------
     ALLURE_DIR: Path = ROOT_DIR / "reports" / "allure"
@@ -64,11 +62,11 @@ class GlobalConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        case_sensitive=True,#区分大小写？
+        case_sensitive=True,
         extra="ignore",
     )
 
-    # **一个方法（函数）伪装成实例属性**。 这个是用来自动使用请求头
+    # 由配置生成鉴权请求头
     @property
     def auth_headers(self) -> dict:
         """返回鉴权请求头"""

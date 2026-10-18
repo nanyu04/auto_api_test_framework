@@ -5,12 +5,6 @@ conftest — 框架级测试基础设施
   1. 加载 models/ 中的 Schema 注册 → 契约中心自动生效
   2. 给每个测试一个唯一的 TestContext → 数据隔离
   3. 按模式启停 MockServer → mock/live 无感切换
-  参数名对 fixture 名 → 自动注入值 ✅  所有 fixture
-    都这样
-  - autouse=True → 不用写参数也自动调 ✅
-  - 普通 fixture → 你得在参数里写名字，pytest
-    才知道调谁 ✅
-  - conftest.py 只是"共享位置"，不是"自动执行" ✅
 """
 import pytest
 from common import HttpClient, logger
@@ -25,7 +19,7 @@ pytest_plugins = ["tests.fixtures.user_fixtures"]
 
 # ==================== 初始化钩子（session 启动时执行一次） ====================
 
-#  pytest_configure  pytest 启动后、收集用例之前
+# pytest_configure: 收集用例前执行一次，用于加载契约注册
 def pytest_configure(config):
     """pytest 配置阶段：加载 Schema 注册"""
     from models import register_user_contracts
@@ -35,7 +29,6 @@ def pytest_configure(config):
 
 # ==================== 命令行参数 ====================
 
-#解析命令行参数时
 def pytest_addoption(parser):
     parser.addoption("--mode", action="store", default="hybrid",
                      choices=["live", "mock", "hybrid"],
@@ -62,19 +55,27 @@ def session_banner(test_mode):
     yield
     logger.info("🏁 全部测试执行完毕")
 
-#不写这个的话CI 上用一个进程跑很多轮测试 就容易出现连接数超了的问题，因为他只有在测试结束以后才会自动关闭
+# session 级共享客户端：用例间复用连接，退出时统一关闭
 @pytest.fixture(scope="session")
 def global_client() -> HttpClient:
     client = HttpClient()
     yield client
     client.close()
 
-#mock服务
+# 接口层必须复用这个会话：否则登录发生在 user_api 自己的会话上，
+# 而清理走的是 global_client，请求不带登录态，自动清理会静默失败
+@pytest.fixture(scope="session", autouse=True)
+def bind_api_client(global_client):
+    from apis import auth_api, user_api
+    user_api.client = global_client
+    auth_api.client = global_client
+    yield
+
 @pytest.fixture(scope="session")
 def mock_server(test_mode) -> MockServer:
     ms = MockServer(settings.BASE_URL)
     if test_mode in (MockMode.MOCK, MockMode.HYBRID):
-        ms.start(mode=test_mode)  # 关键：把模式传给 start，让它决定 real_http
+        ms.start(mode=test_mode)
     yield ms
     ms.stop()
 
@@ -85,15 +86,11 @@ def mock_server(test_mode) -> MockServer:
 @pytest.fixture
 def context(request, global_client) -> TestContext:
     """
-    【核心 Fixture】每个测试独立的上下文
+    每个用例独享一个上下文。
 
-    自动提供：
-      ✅ context.identity  — 唯一身份（数据标记用）
-      ✅ context.tag()     — 给数据打标
-      ✅ context.lifecycle — 数据生命周期管理
-      ✅ 测试结束自动清理（无论成功/失败）
-      request.node.name 这个是他们自动填写的 是fixture的原因
-      就相当于只要有人的参数填写了context 那么这request.node.name就自动导入了
+      - context.identity    本次运行的唯一标识，用作数据标记
+      - context.tag(data)   给 payload 的 name / username / email 等字段加唯一前缀
+      - context.lifecycle   登记本次创建的数据，测试结束按依赖顺序自动清理
     """
     ctx = TestContext(request.node.name, global_client)
     yield ctx

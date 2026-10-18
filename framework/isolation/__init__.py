@@ -20,7 +20,6 @@ from common.logger import logger
 #  核心：TestIdentity — 每次测试运行的唯一身份
 # =============================================================
 
-##只管打标签
 @dataclass
 class TestIdentity:
     """
@@ -44,13 +43,6 @@ class TestIdentity:
     @classmethod
     def new(cls, test_name: str) -> "TestIdentity":
         """创建新的测试身份"""
-        """
-        uuid.uuid4()  
-              # 生成一个随机 UUID，比如 UUID('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
-            .hex         
-             # 转成纯十六进制字符串（去掉横线），比如 'a1b2c3d4e5f67890abcdef1234567890'
-             [:8]         # 取前 8 个字符，比如 'a1b2c3d4'
-        """
         short_id = uuid.uuid4().hex[:8]
         ts = time.time()
         tag = f"t{short_id}"
@@ -72,7 +64,7 @@ class TestIdentity:
         fields 不传时自动处理 name 和 email 字段。
         """
         result = data.copy()
-        targets = fields or [k for k in ["name", "username", "email", "order_no"] if k in data]
+        targets = fields or [k for k in ["name", "username"] if k in data]
         for f in targets:
             if f in result and isinstance(result[f], str):
                 result[f] = f"{self.tag}_{result[f]}"
@@ -97,13 +89,11 @@ class CleanupTask:
     endpoint: str
     method: str = "DELETE"
 
-##只管"我创建了什么，待会要删"
 class DataLifecycle:
     """
     数据生命周期管理器
 
-    和旧版 DataCleaner 的区别：
-      - 绑定 TestIdentity，自动知道"这个测试创建了什么"
+      - 绑定 TestIdentity，记录本次运行创建了哪些资源
       - 按 identity.tag 批量清理
       - 支持资源依赖排序（先删 order 再删 user）
     """
@@ -126,12 +116,12 @@ class DataLifecycle:
             lifecycle.created("user", user_id)
             lifecycle.created("order", order_id, endpoint="/api/v1/orders/xxx")
         """
-        endpoint = endpoint or f"/api/v1/{resource_type}s/{resource_id}"
+        endpoint = endpoint or f"/api/admin/user/delete/{resource_id}"
         self._tasks.append(CleanupTask(
             identity=self._identity,
-            resource_type=resource_type,#它的类型 如 user
-            resource_id=resource_id,#它的id
-            endpoint=endpoint,#这个就是地址 就是
+            resource_type=resource_type,
+            resource_id=resource_id,
+            endpoint=endpoint,
         ))
         logger.debug(f"  📝 [Lifecycle] 注册: {resource_type}#{resource_id}")
         return self
@@ -146,7 +136,6 @@ class DataLifecycle:
         # 按优先级降序（高优先级先清）
         sorted_tasks = sorted(
             self._tasks,
-            #这里面的t就相当于是self._tasks对象
             key=lambda t: self._type_order.get(t.resource_type, 50),
             reverse=True,
         )
@@ -154,7 +143,7 @@ class DataLifecycle:
         errors = []
         for task in sorted_tasks:
             try:
-                self._client.delete(task.endpoint)
+                self._client.post(task.endpoint)
                 logger.debug(f"  🗑️  [Lifecycle] 已清理: {task.resource_type}#{task.resource_id}")
             except Exception as e:
                 errors.append((task, str(e)))

@@ -10,42 +10,33 @@
 import sys
 import subprocess
 from pathlib import Path
+
+
 def run_tests():
     """
-    #这个args=sys.argv 是用于读取你输入的指令
-    python run_tests.py -k test_login --report
-    sys.argv = ['run_tests.py', '-k', 'test_login', '--report']
-    这里的1就是代表后面的第几个开始
-    args = sys.argv[1:] = ['-k', 'test_login', '--report']
+    执行 pytest，命令行参数原样透传。
 
+    例：python run.py -m smoke --report  →  pytest -v -m smoke --alluredir reports/allure
     """
     args = sys.argv[1:]
 
-    # 构建 pytest 命令  创建一个列表cmd pytest是第一个参数
+    # 组装 pytest 命令
     cmd = ["pytest"]
 
-    # 默认 -v
     if "-v" not in args and "--quiet" not in args and "-q" not in args:
         cmd.append("-v")
 
-    # 是否生成报告
+    # 生成 Allure 报告
     if "--report" in args:
         args.remove("--report")
-        #extend将["--alluredir", "reports/allure"]拆开，一个一个加入cmd列表
         cmd.extend(["--alluredir", "reports/allure"])
         cmd.extend(args)
-        #打开cmd 跑命令
         subprocess.run(cmd, cwd=Path(__file__).parent)
-        # 打开报告
         subprocess.run(["allure", "serve", "reports/allure"], cwd=Path(__file__).parent)
     else:
         cmd.extend(args)
-        # 进入 cwd 的目录 然后运行cmd 的命令
         subprocess.run(cmd, cwd=Path(__file__).parent)
-"""
-| 场景 | 建议 |
-|---|---|
-| 快速本地验证、就想看终端结果 | 直接 `pytest -m "P0" --mode=hybrid`（最直观） |
-| 想要 allure 报告 | `python run.py -m "P0" --mode=hybrid --report` |"""
+
+
 if __name__ == "__main__":
     run_tests()

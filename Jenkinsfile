@@ -144,7 +144,6 @@ pipeline {
 
     parameters {
         choice(name: 'ENV', choices: ['dev','test','staging','prod'], description: '选择测试环境')
-        //新增标签以后在表格内填入
         choice(name: 'TEST_LEVEL', choices: ['smoke','regression','all'], description: '测试范围')
         string(name: 'MARKER', defaultValue: '', description: '自定义 pytest marker（优先级高于测试范围，可用 and/or/not）')
         booleanParam(name: 'MOCK_MODE', defaultValue: false, description: '启用 Mock 模式')
@@ -208,8 +207,7 @@ pipeline {
                         bat "copy /Y \"${envFile}\" .env"
                         echo "✅ 已加载配置: ${envFile}"
                     } else {
-                        // 注意：.env / .env.* 都在 .gitignore 里，CI 拉下来的工作区没有这些文件，
-                        // 此时 config 会退回到内置默认值（BASE_URL=http://127.0.0.1:8000）。
+                        // 注意：CI 工作区可能没有 .env.*（未纳入版本管理），此时 config 回退到内置默认值
                         echo "⚠ 未找到 ${envFile}，跳过（将使用 config/__init__.py 里的默认配置）"
                     }
                 }
@@ -229,7 +227,6 @@ pipeline {
                         args << '-m' << "\"${marker}\""   // 加引号，支持 "smoke and not slow" 这种写法
                     }
                     if (params.MOCK_MODE) {
-                    // 这里修改mock模式的类别
                         args << '--mode=hybrid'
                     }
                     args << '--alluredir' << env.REPORTS_DIR
