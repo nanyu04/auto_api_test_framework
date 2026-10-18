@@ -113,27 +113,30 @@ def register_user_contracts():
     """注册用户模块的所有 API 端点 Schema"""
     from framework.contract import registry
 
-    # TODO: 替换为学之思考试系统的真实接口路径
-    registry.register("POST", "",
+    # ========== 登录 ==========
+    registry.register("POST", "/api/user/login",
                       response_schema=API_RESPONSE_SCHEMA,
-                      description="创建用户")
-    registry.register("GET", "/api/v1/users/{id}",
+                      description="用户登录")
+
+    # ========== 学生注册 ==========
+    registry.register("POST", "/api/student/user/register",
+                      response_schema=API_RESPONSE_SCHEMA,
+                      description="学生注册")
+
+    # ========== 管理员 — 创建/编辑用户（同一个接口，id=null 创建，id 有值编辑） ==========
+    registry.register("POST", "/api/admin/user/edit",
+                      response_schema=API_RESPONSE_SCHEMA,
+                      description="创建/编辑用户")
+
+    # ========== 管理员 — 查询用户 ==========
+    registry.register("POST", "/api/admin/user/select/{id}",
                       response_schema=API_RESPONSE_SCHEMA,
                       description="查询用户")
-    registry.register("GET", "/api/v1/users",
-                      response_schema=API_RESPONSE_SCHEMA,
-                      description="用户列表")
-    registry.register("PUT", "/api/v1/users/{id}",
-                      response_schema=API_RESPONSE_SCHEMA,
-                      description="更新用户")
-    registry.register("DELETE", "/api/v1/users/{id}",
+
+    # ========== 管理员 — 删除用户 ==========
+    registry.register("DELETE", "/api/admin/user/delete/{id}",
                       response_schema=API_RESPONSE_SCHEMA,
                       description="删除用户")
-
-    # 更精细的粒度：注册 data 字段的详细 Schema
-    # registry.register("POST", "/api/v1/users",
-    #                    response_schema=USER_SCHEMA,
-    #                    description="创建用户(data细节)")
 
 
 # =============================================================
