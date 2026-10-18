@@ -1,107 +1,93 @@
-# """
-# 【场景测试】— 用户更新 & 删除
-#
-# 全部通过 context 做数据隔离和生命周期管理。
-# """
-# import pytest
-# from common import AssertionEngine
-# from apis import user_api
-# from data import factory
-#
-#
-# # ==================== 模块内共享 Fixture ====================
-#
-#
-# @pytest.fixture
-# def a_new_user(context):
-#     """
-#     创建一个测试用户
-#
-#     返回用户信息，测试结束后自动清理。
-#     每次调用都创建新的用户，互不干扰。
-#     """
-#     payload = context.tag(factory.create_user_payload())
-#     resp = user_api.create(payload)
-#     ae = AssertionEngine(resp)
-#     ae.status_code(201)
-#     user_id = ae.extract("data.id")
-#     user_name = ae.extract("data.name")
-#
-#     context.lifecycle.created("user", user_id)
-#     return {"id": user_id, "name": user_name}
-#
-#
-# # ==================== 更新测试 ====================
-#
-#
-# class TestUpdateUser:
-#     """更新用户"""
-#
-#     @pytest.mark.smoke
-#     @pytest.mark.P0
-#     def test_update_name(self, a_new_user):
-#         """更新用户名"""
-#         new_name = f"updated_{a_new_user['id']}"
-#         resp = user_api.update(a_new_user["id"], {"name": new_name})
-#         (AssertionEngine(resp)
-#             .status_code(200)
-#             .jsonpath_eq("$.data.name", new_name))
-#
-#     @pytest.mark.regression
-#     @pytest.mark.P2
-#     def test_update_not_found(self):
-#         """更新不存在的用户"""
-#         resp = user_api.update(9999999, {"name": "ghost"})
-#         AssertionEngine(resp).status_code(404)
-#
-#
-# # ==================== 删除测试 ====================
-#
-#
-# class TestDeleteUser:
-#     """删除用户"""
-#
-#     @pytest.mark.smoke
-#     @pytest.mark.P0
-#     def test_delete_normal(self, context):
-#         """正常删除"""
-#         payload = context.tag(factory.create_user_payload())
-#         resp = user_api.create(payload)
-#         ae = AssertionEngine(resp)
-#         ae.status_code(201)
-#         user_id = ae.extract("data.id")
-#         context.lifecycle.created("user", user_id)
-#
-#         resp = user_api.delete(user_id)
-#         AssertionEngine(resp).status_code(204)
-#
-#     @pytest.mark.regression
-#     @pytest.mark.P1
-#     def test_delete_then_get_404(self, context):
-#         """删除后再查 → 404（在同一个测试内完成）"""
-#         payload = context.tag(factory.create_user_payload())
-#         resp = user_api.create(payload)
-#         ae = AssertionEngine(resp)
-#         ae.status_code(201)
-#         user_id = ae.extract("data.id")
-#         context.lifecycle.created("user", user_id)
-#
-#         user_api.delete(user_id)
-#         resp = user_api.get(user_id)
-#         AssertionEngine(resp).status_code(404)
-#
-#     @pytest.mark.regression
-#     @pytest.mark.P2
-#     def test_delete_idempotent(self, context):
-#         """重复删除应该幂等，不报 5xx"""
-#         payload = context.tag(factory.create_user_payload())
-#         resp = user_api.create(payload)
-#         ae = AssertionEngine(resp)
-#         ae.status_code(201)
-#         user_id = ae.extract("data.id")
-#         context.lifecycle.created("user", user_id)
-#
-#         status1 = user_api.delete(user_id).status_code
-#         status2 = user_api.delete(user_id).status_code
-#         assert status1 < 500, f"首次删除返回 {status1}"
-#         assert status2 < 500, f"重复删除返回 {status2}"
+"""
+【场景测试】— 用户更新 & 删除
+
+全部通过 context 做数据隔离和生命周期管理。
+"""
+import pytest
+from common import AssertionEngine
+from apis import user_api
+from utils import get_project_root, read_yaml
+
+
+# ==================== 更新测试 ====================
+
+
+class TestUpdateUser:
+    """更新用户"""
+
+    @pytest.mark.smoke
+    @pytest.mark.P0
+    def test_update_name(self, logged_in_admin, a_new_admin):
+        """更新用户名"""
+        create_user_data = read_yaml(get_project_root() / "data/test_data/create_stu_admin.yaml")
+        edit_url = create_user_data[1]["url"]
+
+        new_name = f"updated_{a_new_admin['name']}"
+        edit_json = create_user_data[1]["request"]["json"].copy()
+        edit_json["id"] = a_new_admin["id"]
+        edit_json["userName"] = new_name
+
+        resp = user_api.edit_user(edit_url, edit_json)
+        (AssertionEngine(resp)
+            .status_code(200)
+            .jsonpath_eq("$.code", 1)
+            .jsonpath_eq("$.response.userName", new_name))
+
+    @pytest.mark.regression
+    @pytest.mark.P2
+    def test_update_not_found(self, logged_in_admin):
+        """更新不存在的用户"""
+        create_user_data = read_yaml(get_project_root() / "data/test_data/create_stu_admin.yaml")
+        edit_url = create_user_data[1]["url"]
+
+        edit_json = create_user_data[1]["request"]["json"].copy()
+        edit_json["id"] = 9999999
+        edit_json["userName"] = "ghost"
+
+        resp = user_api.edit_user(edit_url, edit_json)
+        # 用户不存在，code != 1 表示失败
+        ae = AssertionEngine(resp)
+        ae.status_code(200)
+        assert ae.extract("code") != 1, f"期望失败，实际 code={ae.extract('code')}"
+
+
+# ==================== 删除测试 ====================
+
+
+class TestDeleteUser:
+    """删除用户"""
+
+    @pytest.mark.smoke
+    @pytest.mark.P0
+    def test_delete_normal(self, logged_in_admin, a_new_admin):
+        """正常删除"""
+        user_id = a_new_admin["id"]
+        resp = user_api.delete_user(f"/api/admin/user/delete/{user_id}")
+        AssertionEngine(resp).status_code(200).jsonpath_eq("$.code", 1)
+
+    @pytest.mark.regression
+    @pytest.mark.P1
+    def test_delete_then_get_404(self, logged_in_admin, a_new_admin):
+        """删除后再查 → 不存在"""
+        user_id = a_new_admin["id"]
+
+        # 先删
+        user_api.delete_user(f"/api/admin/user/delete/{user_id}")
+
+        # 再查，应该不存在
+        resp = user_api.get_user(f"/api/admin/user/select/{user_id}")
+        ae = AssertionEngine(resp)
+        ae.status_code(200)
+        assert ae.extract("code") != 1, f"期望用户不存在，实际 code={ae.extract('code')}"
+
+    @pytest.mark.regression
+    @pytest.mark.P2
+    def test_delete_idempotent(self, logged_in_admin, a_new_admin):
+        """重复删除应该幂等，不报 5xx"""
+        user_id = a_new_admin["id"]
+        delete_url = f"/api/admin/user/delete/{user_id}"
+
+        status1 = user_api.delete_user(delete_url).status_code
+        status2 = user_api.delete_user(delete_url).status_code
+        assert status1 < 500, f"首次删除返回 {status1}"
+        assert status2 < 500, f"重复删除返回 {status2}"

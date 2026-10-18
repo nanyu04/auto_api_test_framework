@@ -18,10 +18,8 @@ class DataFactory:
     def create_user_payload(**overrides: Any) -> dict:
         """创建用户请求数据"""
         data = {
-            "name": _faker.name(),
-            "email": _faker.email(),
-            "age": _faker.random_int(18, 60),
-            "phone": _faker.phone_number(),
+            "userName": _faker.name(),
+            "password": _faker.password(),
         }
         data.update(overrides)
         return data

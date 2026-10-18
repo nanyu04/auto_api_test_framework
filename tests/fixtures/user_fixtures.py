@@ -10,7 +10,7 @@ from data import factory
 from utils import get_project_root, read_yaml
 
 @pytest.fixture
-def a_new_stu(logged_in_admin, context):
+def a_new_admin(logged_in_admin, context):
     """
     用管理员身份创建一个测试用户，测试结束自动删除
 
