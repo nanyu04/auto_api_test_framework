@@ -35,10 +35,8 @@ class UserApi(BaseApi):
         return self.put(path=url, json=json_body, **kwargs)
 
     def delete_user(self, url, **kwargs):
-        """删除用户"""
-        return self.delete(path=url, **kwargs)
+        """删除用户（服务端统一用 POST）"""
+        return self.post(path=url, **kwargs)
 
-    def update_user(self,url,json_body: dict, **kwargs):
-        return self.put(path=url, json=json_body, **kwargs)
 # 全局单例
 user_api = UserApi()
