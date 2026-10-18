@@ -193,4 +193,31 @@ class MockServer:
     def is_active(self) -> bool:
         return self._active
 
+    @property
+    def request_history(self):
+        """返回所有被 mock 拦截的请求记录，用于验证请求参数是否正确发出"""
+        if self._mock_adapter:
+            return self._mock_adapter.request_history
+        return []
+
+    @property
+    def last_request(self):
+        """最后一次被 mock 拦截的请求，方便快速校验"""
+        history = self.request_history
+        #取最后一条
+        return history[-1] if history else None
+
+    def reset(self):
+        """
+        清除所有已注册的 mock 路由（函数级隔离）
+
+        解决 session 级 MockServer 跨用例污染：
+          用例 A 注册了 POST /api/student/user/update → 用例 B 的同 URL 真实请求被拦截。
+        在函数级 fixture 中每次用完 reset，清理干净。
+        """
+        self._profiles.clear()
+        if self._mock_adapter:
+            self._mock_adapter.reset_mock()
+            logger.debug("  🎭 [MockServer] 已清除所有 mock 路由")
+
 

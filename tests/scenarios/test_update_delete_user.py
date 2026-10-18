@@ -3,6 +3,7 @@
 
 全部通过 context 做数据隔离和生命周期管理。
 """
+import allure
 import pytest
 from common import AssertionEngine, retry_on_failure
 from apis import user_api
@@ -15,6 +16,10 @@ from utils import get_project_root, read_yaml
 class TestUpdateUser:
     """更新用户"""
 
+    @allure.epic("用户管理")
+    @allure.feature("更新用户")
+    @allure.story("正常更新用户名")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.smoke
     @pytest.mark.P0
     @retry_on_failure(max_attempts=3, wait_seconds=2)
@@ -34,6 +39,10 @@ class TestUpdateUser:
          .jsonpath_eq("$.code", 1)
          .jsonpath_eq("$.response.userName", new_name))
 
+    @allure.epic("用户管理")
+    @allure.feature("更新用户")
+    @allure.story("更新不存在用户")
+    @allure.severity(allure.severity_level.MINOR)
     @pytest.mark.regression
     @pytest.mark.P2
     @pytest.mark.skip(reason="接口不校验 id 是否存在，传任意 id 都返回 code=1，无法测此场景")
@@ -58,6 +67,10 @@ class TestUpdateUser:
 class TestDeleteUser:
     """删除用户"""
 
+    @allure.epic("用户管理")
+    @allure.feature("删除用户")
+    @allure.story("正常删除")
+    @allure.severity(allure.severity_level.CRITICAL)
     @pytest.mark.smoke
     @pytest.mark.P0
     @retry_on_failure(max_attempts=3, wait_seconds=2)
@@ -67,6 +80,10 @@ class TestDeleteUser:
         resp = user_api.delete_user(f"/api/admin/user/delete/{user_id}")
         AssertionEngine(resp).status_code(200).jsonpath_eq("$.code", 1)
 
+    @allure.epic("用户管理")
+    @allure.feature("删除用户")
+    @allure.story("删除后查询确认不存在")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.regression
     @pytest.mark.P1
     def test_delete_then_get_404(self, logged_in_admin, a_new_admin):
@@ -82,6 +99,10 @@ class TestDeleteUser:
         ae.status_code(200)
         assert ae.extract("code") != 1, f"期望用户不存在，实际 code={ae.extract('code')}"
 
+    @allure.epic("用户管理")
+    @allure.feature("删除用户")
+    @allure.story("重复删除幂等性")
+    @allure.severity(allure.severity_level.NORMAL)
     @pytest.mark.regression
     @pytest.mark.P2
     def test_delete_idempotent(self, logged_in_admin, a_new_admin):

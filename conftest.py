@@ -21,10 +21,22 @@ pytest_plugins = ["tests.fixtures.user_fixtures"]
 
 # pytest_configure: 收集用例前执行一次，用于加载契约注册
 def pytest_configure(config):
-    """pytest 配置阶段：加载 Schema 注册"""
+    """pytest 配置阶段：加载 Schema 注册 + Allure 环境信息"""
     from models import register_user_contracts
     register_user_contracts()
     logger.info(f"📋 [框架] 契约注册完成: {registry.count()} 条端点")
+
+    # Allure 报告环境信息
+    allure_dir = getattr(config.option, 'allure_report_dir', None) or "reports/allure"
+    if allure_dir:
+        from pathlib import Path
+        env_file = Path(allure_dir) / "environment.properties"
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        env_file.write_text(
+            f"Environment={settings.ENV}\n"
+            f"BaseURL={settings.BASE_URL}\n"
+            f"Mode=hybrid\n"
+        )
 
 
 # ==================== 命令行参数 ====================
@@ -78,6 +90,26 @@ def mock_server(test_mode) -> MockServer:
         ms.start(mode=test_mode)
     yield ms
     ms.stop()
+
+
+@pytest.fixture
+def mock_session(mock_server):
+    """
+    函数级 Mock，用完自动清理，不会污染其他用例。
+
+    解决 session 级 mock_server 的问题：
+      用例 A 注册了 POST /api/student/user/update
+      → 用例 B（真实请求）的同 URL 被 mock 拦截，拿到假数据。
+
+    用法：
+        def test_mock_xxx(mock_session, logged_in_student):
+            profile = MockProfile("test")
+            profile.post("/some/url", MockResponse(200, body="ok"))
+            mock_session.load(profile)
+            ...  # mock 只在当前用例生效，结束自动清除
+    """
+    yield mock_server
+    mock_server.reset()
 
 
 # ==================== 测试级：隔离 + 生命周期 ====================
