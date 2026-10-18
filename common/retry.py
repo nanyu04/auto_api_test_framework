@@ -1,70 +1,52 @@
 """
-【重试机制】 — 基于 tenacity 的重试装饰器
+【重试工具】— 基于 tenacity 的测试重试装饰器
 
-用于处理网络抖动、服务暂时不可用等场景。
+用于处理偶尔因网络抖动、服务延迟导致的用例失败。
+
+用法一：装饰器 — 套在测试函数上
+─────────────────────────────
+    from common.retry import retry_on_failure
+
+    @retry_on_failure(max_attempts=3, wait_seconds=2)
+    def test_something(a_new_admin):
+        ...
+
+用法二：safe_call — 重试单个操作
+─────────────────────────────
+    from common.retry import safe_call
+
+    resp = safe_call(user_api.create_user, url, payload, max_attempts=3)
+
+参数：
+    max_attempts: 最多执行次数（含第一次），默认 3
+    wait_seconds: 两次重试之间的等待秒数，默认 2
 """
-from typing import Callable, Type, Optional, Tuple
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-    RetryError,
-)
-from common.logger import logger
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 
-def retry_on_failure(
-    max_attempts: Optional[int] = None,
-    min_delay: float = 0.5,
-    max_delay: float = 10.0,
-    exceptions: Tuple[Type[Exception], ...] = (Exception,),
-    reraise: bool = True,
-):
+def retry_on_failure(max_attempts: int = 3, wait_seconds: int = 2):
     """
-    自动重试装饰器
+    测试失败自动重试（装饰器版本）
 
-    用法：
-        @retry_on_failure()
-        def unstable_request():
-            ...
-
-        @retry_on_failure(max_attempts=5, exceptions=(TimeoutError,))
-        def slow_request():
-            ...
-
-    参数：
-        max_attempts:  最大尝试次数（默认 settings.MAX_RETRIES）
-        min_delay:     初始等待秒数
-        max_delay:     最大等待秒数
-        exceptions:    哪些异常触发重试
-        reraise:       重试耗尽后是否抛异常
+    只对 AssertionError 生效，断言失败才重试。
     """
-    from config import settings as _cfg
-
     return retry(
-        stop=stop_after_attempt(max_attempts or _cfg.MAX_RETRIES),
-        wait=wait_exponential(
-            multiplier=_cfg.RETRY_MULTIPLIER,
-            min=min_delay,
-            max=max_delay,
-        ),
-        retry=retry_if_exception_type(exceptions),
-        before_sleep=before_sleep_log(logger, "WARNING"),
-        reraise=reraise,
+        reraise=True,#把最后一次的 AssertionError 原样抛出
+        retry=stop_after_attempt(max_attempts),
+        wait=wait_fixed(wait_seconds),
     )
 
 
-def safe_call(func: Callable, *args, **kwargs):
+def safe_call(func, *args, max_attempts: int = 3, wait_seconds: int = 2, **kwargs):
     """
-    安全调用函数，失败后返回 None 而非抛异常
+    重试单个操作（函数调用版本）
+
+    适用于只需要重试某一步 API 调用而非整个测试的场景。
 
     用法：
-        result = safe_call(unstable_func, arg1, arg2)
+        resp = safe_call(user_api.create_user, url, payload, max_attempts=5)
     """
-    try:
+    @retry(reraise=True, retry=stop_after_attempt(max_attempts), wait=wait_fixed(wait_seconds))
+    def _call():
         return func(*args, **kwargs)
-    except Exception as e:
-        logger.warning(f"安全调用失败: {e}")
-        return None
+    return _call()

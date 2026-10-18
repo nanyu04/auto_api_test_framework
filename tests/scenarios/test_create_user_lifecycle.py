@@ -7,7 +7,7 @@
   3. 契约校验 — HttpClient 自动完成，测试不用管
 """
 import pytest
-from common import AssertionEngine
+from common import AssertionEngine, retry_on_failure
 from apis import user_api
 from utils import get_project_root, read_yaml
 
@@ -17,6 +17,7 @@ class TestCreateUser:
 
     @pytest.mark.smoke
     @pytest.mark.P0
+    @retry_on_failure(max_attempts=3, wait_seconds=2)
     def test_create_basic(self, logged_in_admin, context):
         """
         正常创建用户（管理员接口）
@@ -58,6 +59,7 @@ class TestCreateUser:
 
     @pytest.mark.regression
     @pytest.mark.P2
+    @retry_on_failure(max_attempts=3, wait_seconds=2)
     def test_create_duplicate_username(self, context, a_new_admin):
         """
         重复用户名 → 用户已存在

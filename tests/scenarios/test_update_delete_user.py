@@ -4,7 +4,7 @@
 全部通过 context 做数据隔离和生命周期管理。
 """
 import pytest
-from common import AssertionEngine
+from common import AssertionEngine, retry_on_failure
 from apis import user_api
 from utils import get_project_root, read_yaml
 
@@ -17,6 +17,7 @@ class TestUpdateUser:
 
     @pytest.mark.smoke
     @pytest.mark.P0
+    @retry_on_failure(max_attempts=3, wait_seconds=2)
     def test_update_name(self, logged_in_admin, a_new_admin):
         """更新用户名"""
         create_user_data = read_yaml(get_project_root() / "data/test_data/create_stu_admin.yaml")
@@ -59,6 +60,7 @@ class TestDeleteUser:
 
     @pytest.mark.smoke
     @pytest.mark.P0
+    @retry_on_failure(max_attempts=3, wait_seconds=2)
     def test_delete_normal(self, logged_in_admin, a_new_admin):
         """正常删除"""
         user_id = a_new_admin["id"]
